@@ -20,22 +20,24 @@
     <body class="font-sans antialiased">
         <x-banner />
 
-        <div class="min-h-screen bg-gray-100">
-            @livewire('navigation-menu')
+        <div class="drawer lg:drawer-open min-h-screen bg-base-100">
+            <input id="main-drawer" type="checkbox" class="drawer-toggle" />
+            
+            <div class="drawer-content flex flex-col min-h-screen">
+                <!-- Navbar -->
+                @include('layouts.navbar.index')
 
-            <!-- Page Heading -->
-            @if (isset($header))
-                <header class="bg-white shadow">
-                    <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-                        {{ $header }}
-                    </div>
-                </header>
-            @endif
-
-            <!-- Page Content -->
-            <main>
-                {{ $slot }}
-            </main>
+                <!-- Page Content -->
+                <main class="flex-grow p-4 md:p-6 bg-base-100">
+                    {{ $slot }}
+                </main>
+            </div>
+            
+            <div class="drawer-side z-40">
+                <label for="main-drawer" aria-label="close sidebar" class="drawer-overlay"></label>
+                <!-- Sidebar -->
+                @include('layouts.sidebar.index')
+            </div>
         </div>
 
         @stack('modals')
