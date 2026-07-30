@@ -14,6 +14,7 @@
                     <a href="{{ route('dev-settings.clientes') }}" class="tab font-semibold">Clientes</a>
                     <a href="{{ route('dev-settings.vinculos') }}" class="tab font-semibold">Vínculos</a>
                     <a href="{{ route('dev-settings.contas') }}" class="tab tab-active font-semibold">Contas Correntes</a>
+                    <a href="{{ route('dev-settings.reverb') }}" class="tab font-semibold">Laravel Reverb</a>
                 </div>
 
                 <!-- Resume Sync Banner -->

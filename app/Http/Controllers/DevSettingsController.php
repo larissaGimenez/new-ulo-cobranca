@@ -559,6 +559,12 @@ class DevSettingsController extends Controller
         }
     }
 
+    public function reverbIndex(\App\Services\ReverbServerManager $manager)
+    {
+        $online = $manager->isOnline();
+        return view('dev-settings-reverb', compact('online'));
+    }
+
     private function parseDate($dateStr)
     {
         if (empty($dateStr)) {

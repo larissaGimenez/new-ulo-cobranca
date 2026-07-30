@@ -4,6 +4,9 @@ use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\DevSettingsController;
 use App\Http\Controllers\ClientesController;
+use App\Http\Controllers\ReverbController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\SettingsController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -25,6 +28,20 @@ Route::middleware([
     Route::get('/dev-settings/vinculos', [DevSettingsController::class, 'vinculosIndex'])->name('dev-settings.vinculos');
     Route::get('/dev-settings/contas', [DevSettingsController::class, 'contasIndex'])->name('dev-settings.contas');
     Route::post('/dev-settings/contas/sync-page', [DevSettingsController::class, 'syncContasPage'])->name('dev-settings.contas.sync-page');
+    
+    // Reverb routes
+    Route::get('/dev-settings/reverb', [DevSettingsController::class, 'reverbIndex'])->name('dev-settings.reverb');
+    Route::get('/dev-settings/reverb/status', [ReverbController::class, 'status'])->name('dev-settings.reverb.status');
+    Route::post('/dev-settings/reverb/start', [ReverbController::class, 'start'])->name('dev-settings.reverb.start');
+    Route::post('/dev-settings/reverb/stop', [ReverbController::class, 'stop'])->name('dev-settings.reverb.stop');
+
+    // Notification routes
+    Route::get('/notifications/unread', [NotificationController::class, 'getUnread'])->name('notifications.unread');
+    Route::post('/notifications/clear', [NotificationController::class, 'clearAll'])->name('notifications.clear');
+
+    // Settings routes
+    Route::get('/configuracoes', [SettingsController::class, 'index'])->name('configuracoes');
+    Route::put('/configuracoes', [SettingsController::class, 'update'])->name('configuracoes.update');
 
     Route::get('/clientes', [ClientesController::class, 'index'])->name('clientes');
 });
