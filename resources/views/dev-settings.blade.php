@@ -12,6 +12,7 @@
                 <div class="tabs tabs-lifted mb-6">
                     <a href="{{ route('dev-settings') }}" class="tab tab-active font-semibold">Contas a Pagar</a>
                     <a href="{{ route('dev-settings.clientes') }}" class="tab font-semibold">Clientes</a>
+                    <a href="{{ route('dev-settings.vinculos') }}" class="tab font-semibold">Vínculos</a>
                 </div>
 
                 <h3 class="text-lg font-bold mb-4 text-base-content">Integração Omie - Contas a Pagar</h3>

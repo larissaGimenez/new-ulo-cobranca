@@ -56,4 +56,10 @@ class OmieContaPagar extends Model
         'cnab_integracao_bancaria' => 'array',
         'distribuicao' => 'array',
     ];
+
+    public function cliente()
+    {
+        return $this->belongsTo(OmieCliente::class, 'codigo_cliente_fornecedor', 'codigo_cliente_omie')
+            ->where('ulo_source', $this->ulo_source);
+    }
 }

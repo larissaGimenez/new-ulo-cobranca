@@ -21,4 +21,5 @@ Route::middleware([
     Route::post('/dev-settings/sync-page', [DevSettingsController::class, 'syncPage'])->name('dev-settings.sync-page');
     Route::get('/dev-settings/clientes', [DevSettingsController::class, 'clientesIndex'])->name('dev-settings.clientes');
     Route::post('/dev-settings/clientes/sync-page', [DevSettingsController::class, 'syncClientesPage'])->name('dev-settings.clientes.sync-page');
+    Route::get('/dev-settings/vinculos', [DevSettingsController::class, 'vinculosIndex'])->name('dev-settings.vinculos');
 });

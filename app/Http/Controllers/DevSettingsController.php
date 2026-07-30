@@ -315,6 +315,43 @@ class DevSettingsController extends Controller
         }
     }
 
+    public function vinculosIndex()
+    {
+        $totalTitles = OmieContaPagar::count();
+        
+        $linkedTitles = OmieContaPagar::join('omie_clientes', function ($join) {
+            $join->on('omie_contas_pagar.codigo_cliente_fornecedor', '=', 'omie_clientes.codigo_cliente_omie')
+                 ->on('omie_contas_pagar.ulo_source', '=', 'omie_clientes.ulo_source');
+        })->count();
+
+        $orphanTitles = $totalTitles - $linkedTitles;
+
+        // Statistics per ULO
+        $statsByUlo = [];
+        for ($i = 1; $i <= 5; $i++) {
+            $num = str_pad($i, 2, '0', STR_PAD_LEFT);
+            $name = env("ULO_{$num}_NAME");
+            if ($name) {
+                $total = OmieContaPagar::where('ulo_source', $name)->count();
+                
+                $linked = OmieContaPagar::where('omie_contas_pagar.ulo_source', $name)
+                    ->join('omie_clientes', function ($join) {
+                        $join->on('omie_contas_pagar.codigo_cliente_fornecedor', '=', 'omie_clientes.codigo_cliente_omie')
+                             ->on('omie_contas_pagar.ulo_source', '=', 'omie_clientes.ulo_source');
+                    })->count();
+
+                $statsByUlo[] = [
+                    'name' => $name,
+                    'total' => $total,
+                    'linked' => $linked,
+                    'orphan' => $total - $linked
+                ];
+            }
+        }
+
+        return view('dev-settings-vinculos', compact('totalTitles', 'linkedTitles', 'orphanTitles', 'statsByUlo'));
+    }
+
     private function parseDate($dateStr)
     {
         if (empty($dateStr)) {
