@@ -70,6 +70,10 @@ class ClientesController extends Controller
                 -- Dívida Redecard vencida
                 COALESCE(SUM(CASE WHEN cp.status_titulo = 'ATRASADO' AND rc.n_cod_c_c IS NOT NULL THEN cp.valor_documento ELSE 0 END), 0) as divida_redecard,
                 
+                -- Quantidade de títulos
+                COALESCE(COUNT(CASE WHEN cp.status_titulo = 'ATRASADO' AND rc.n_cod_c_c IS NULL THEN cp.id END), 0) as qtd_titulos_comum,
+                COALESCE(COUNT(CASE WHEN cp.status_titulo = 'ATRASADO' AND rc.n_cod_c_c IS NOT NULL THEN cp.id END), 0) as qtd_titulos_redecard,
+
                 -- Dias de atraso (com base no vencido mais antigo)
                 COALESCE(CURRENT_DATE - MIN(CASE WHEN cp.status_titulo = 'ATRASADO' THEN cp.data_previsao END), 0) as dias_atraso
             FROM omie_clientes c
@@ -147,6 +151,19 @@ class ClientesController extends Controller
         $results = DB::select($queryStr, $bindings);
         $total = count($results);
 
+        // Calculate totals for stats panel
+        $totalOverdueTitlesCount = 0;
+        $totalOverdueAmount = 0.0;
+        foreach ($results as $row) {
+            if ($tab === 'inadimplentes_redecard') {
+                $totalOverdueTitlesCount += (int)$row->qtd_titulos_redecard;
+                $totalOverdueAmount += (float)$row->divida_redecard;
+            } else if ($tab === 'inadimplentes') {
+                $totalOverdueTitlesCount += (int)$row->qtd_titulos_comum;
+                $totalOverdueAmount += (float)$row->divida_comum;
+            }
+        }
+
         $perPage = 15;
         $page = $request->input('page', 1);
         $offset = ($page - 1) * $perPage;
@@ -169,7 +186,9 @@ class ClientesController extends Controller
             'search',
             'sortBy',
             'sortDir',
-            'faixa'
+            'faixa',
+            'totalOverdueTitlesCount',
+            'totalOverdueAmount'
         ));
     }
 }

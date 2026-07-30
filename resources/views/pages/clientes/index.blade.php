@@ -85,6 +85,23 @@
                 </div>
 
                 <div class="p-6">
+                    <!-- Stats Panel -->
+                    @if($tab !== 'adimplentes')
+                        <div class="stats shadow bg-base-200 border border-base-300 w-full mb-6">
+                            <div class="stat">
+                                <div class="stat-title text-base-content/70">Títulos em Atraso Considerados</div>
+                                <div class="stat-value text-primary">{{ number_format($totalOverdueTitlesCount, 0, ',', '.') }}</div>
+                                <div class="stat-desc text-xs text-base-content/50">Soma de todos os recebíveis vencidos e não baixados</div>
+                            </div>
+                            
+                            <div class="stat">
+                                <div class="stat-title text-base-content/70">Dívida Total Acumulada</div>
+                                <div class="stat-value text-error">R$ {{ number_format($totalOverdueAmount, 2, ',', '.') }}</div>
+                                <div class="stat-desc text-xs text-base-content/50">Valor total a receber (apenas títulos atrasados)</div>
+                            </div>
+                        </div>
+                    @endif
+
                     <div class="overflow-x-auto w-full">
                         <table class="table w-full">
                             <thead>
