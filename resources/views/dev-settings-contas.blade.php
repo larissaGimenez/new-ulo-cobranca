@@ -11,9 +11,9 @@
                 <!-- Navigation Tabs -->
                 <div class="tabs tabs-lifted mb-6">
                     <a href="{{ route('dev-settings') }}" class="tab font-semibold">Contas a Receber</a>
-                    <a href="{{ route('dev-settings.clientes') }}" class="tab tab-active font-semibold">Clientes</a>
+                    <a href="{{ route('dev-settings.clientes') }}" class="tab font-semibold">Clientes</a>
                     <a href="{{ route('dev-settings.vinculos') }}" class="tab font-semibold">Vínculos</a>
-                    <a href="{{ route('dev-settings.contas') }}" class="tab font-semibold">Contas Correntes</a>
+                    <a href="{{ route('dev-settings.contas') }}" class="tab tab-active font-semibold">Contas Correntes</a>
                 </div>
 
                 <!-- Resume Sync Banner -->
@@ -28,9 +28,9 @@
                     </div>
                 </div>
 
-                <h3 class="text-lg font-bold mb-4 text-base-content">Integração Omie - Clientes</h3>
+                <h3 class="text-lg font-bold mb-4 text-base-content">Integração Omie - Contas Correntes</h3>
                 <p class="text-sm text-base-content/70 mb-6">
-                    Use esta ferramenta para realizar a sincronização inicial de todos os clientes registrados nas 5 ULOs configuradas no arquivo de ambiente (.env) de forma fracionada (via AJAX) para evitar timeouts.
+                    Use esta ferramenta para realizar a sincronização inicial de todas as contas correntes registradas nas 5 ULOs configuradas no arquivo de ambiente (.env) de forma fracionada (via AJAX) para identificar as contas Redecard.
                 </p>
 
                 <!-- Dynamic Progress Section (Hidden by default) -->
@@ -79,7 +79,7 @@
                                         <tr>
                                             <th>Nome da ULO</th>
                                             <th>App Key</th>
-                                            <th class="text-right">Clientes Importados</th>
+                                            <th class="text-right">Contas Importadas</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -146,7 +146,7 @@
         const maxAutoRetries = 3;
         const autoRetryDelayMs = 3000;
 
-        const STORAGE_KEY = 'clientes_sync_progress';
+        const STORAGE_KEY = 'contas_sync_progress';
 
         // Check if there is saved progress on load
         window.addEventListener('DOMContentLoaded', () => {
@@ -156,7 +156,7 @@
                     const progress = JSON.parse(saved);
                     if (progress && progress.uloIndex < activeUlos.length) {
                         const uloName = activeUlos[progress.uloIndex].name;
-                        document.getElementById('resume-banner-text').textContent = `Detectamos um progresso salvo dos clientes da ULO: ${uloName} (Página ${progress.page}, total importado: ${progress.totalImported}).`;
+                        document.getElementById('resume-banner-text').textContent = `Detectamos um progresso salvo das contas da ULO: ${uloName} (Página ${progress.page}, total importado: ${progress.totalImported}).`;
                         document.getElementById('resume-banner').classList.remove('hidden');
                     }
                 } catch (e) {
@@ -242,7 +242,7 @@
             document.getElementById('progress-container').classList.remove('hidden');
             document.getElementById('error-controls').classList.add('hidden');
             
-            appendLog('Iniciando sincronização dos clientes das ULOs configuradas...');
+            appendLog('Iniciando sincronização das contas correntes das ULOs configuradas...');
             syncNext();
         }
 
@@ -262,7 +262,7 @@
                 document.getElementById('progress-text-right').textContent = '100%';
                 document.getElementById('error-controls').classList.add('hidden');
                 
-                appendLog(`[Concluído] Sincronização dos clientes de todas as ULOs finalizada com sucesso! Total de ${totalImported} registros importados/atualizados.`);
+                appendLog(`[Concluído] Sincronização das contas correntes de todas as ULOs finalizada com sucesso! Total de ${totalImported} registros importados/atualizados.`);
                 
                 // Recarrega estatísticas em 3 segundos
                 setTimeout(() => {
@@ -273,12 +273,12 @@
 
             const currentUlo = activeUlos[currentUloIndex];
             
-            document.getElementById('progress-title').textContent = `Sincronizando clientes de ${currentUlo.name}...`;
+            document.getElementById('progress-title').textContent = `Sincronizando contas de ${currentUlo.name}...`;
             document.getElementById('progress-text-left').textContent = `Processando página ${currentPage}...`;
             document.getElementById('error-controls').classList.add('hidden');
 
             try {
-                const response = await fetch("{{ route('dev-settings.clientes.sync-page') }}", {
+                const response = await fetch("{{ route('dev-settings.contas.sync-page') }}", {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -316,10 +316,10 @@
                 document.getElementById('sync-progress').value = percent;
                 document.getElementById('progress-text-right').textContent = `${percent}%`;
 
-                appendLog(`[OK] ${currentUlo.name} | Página ${currentPage}/${totalPages} | +${result.imported_count} clientes importados.`);
+                appendLog(`[OK] ${currentUlo.name} | Página ${currentPage}/${totalPages} | +${result.imported_count} contas importadas.`);
 
                 if (result.finished) {
-                    appendLog(`[Concluído] Clientes de ${currentUlo.name} finalizados com sucesso.`);
+                    appendLog(`[Concluído] Contas de ${currentUlo.name} finalizadas com sucesso.`);
                     
                     // Incrementa ULO index, reseta página
                     currentUloIndex++;

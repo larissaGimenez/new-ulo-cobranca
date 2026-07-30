@@ -10,14 +10,27 @@
             <div class="bg-base-100 overflow-hidden shadow-xl sm:rounded-lg p-6 border border-base-200">
                 <!-- Navigation Tabs -->
                 <div class="tabs tabs-lifted mb-6">
-                    <a href="{{ route('dev-settings') }}" class="tab tab-active font-semibold">Contas a Pagar</a>
+                    <a href="{{ route('dev-settings') }}" class="tab tab-active font-semibold">Contas a Receber</a>
                     <a href="{{ route('dev-settings.clientes') }}" class="tab font-semibold">Clientes</a>
                     <a href="{{ route('dev-settings.vinculos') }}" class="tab font-semibold">Vínculos</a>
+                    <a href="{{ route('dev-settings.contas') }}" class="tab font-semibold">Contas Correntes</a>
                 </div>
 
-                <h3 class="text-lg font-bold mb-4 text-base-content">Integração Omie - Contas a Pagar</h3>
+                <!-- Resume Sync Banner -->
+                <div id="resume-banner" class="hidden alert alert-info mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                        <span class="font-bold block text-sm">Sincronização Anterior Interrompida!</span>
+                        <span class="text-xs opacity-90" id="resume-banner-text">Detectamos um progresso salvo da ULO...</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <button type="button" class="btn btn-sm btn-primary" onclick="resumeSync()">Continuar de onde parou</button>
+                        <button type="button" class="btn btn-sm btn-ghost text-xs" onclick="clearSavedProgress()">Iniciar do Zero</button>
+                    </div>
+                </div>
+
+                <h3 class="text-lg font-bold mb-4 text-base-content">Integração Omie - Contas a Receber</h3>
                 <p class="text-sm text-base-content/70 mb-6">
-                    Use esta ferramenta para realizar a sincronização inicial de todas as contas a pagar registradas nas 5 ULOs configuradas no arquivo de ambiente (.env) de forma fracionada (via AJAX) para evitar timeouts.
+                    Use esta ferramenta para realizar a sincronização inicial de todas as contas a receber registradas nas 5 ULOs configuradas no arquivo de ambiente (.env) de forma fracionada (via AJAX) para evitar timeouts.
                 </p>
 
                 <!-- Dynamic Progress Section (Hidden by default) -->
@@ -37,6 +50,20 @@
                         <span class="text-xs font-bold text-base-content/70">Logs em Tempo Real:</span>
                         <div id="logs-console" class="bg-neutral text-neutral-content p-4 rounded-lg font-mono text-xs h-48 overflow-y-auto mt-1 flex flex-col gap-1">
                             <div>[Sistema] Pronto para iniciar a sincronização.</div>
+                        </div>
+                    </div>
+
+                    <!-- Error Controls (Hidden by default) -->
+                    <div id="error-controls" class="hidden alert alert-error mt-4 flex flex-col items-start gap-3">
+                        <div class="flex gap-2 items-center font-bold text-white">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            <span>Falha na sincronização. Ações de recuperação:</span>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <button type="button" class="btn btn-sm btn-outline text-white hover:bg-white hover:text-red-700 font-bold" onclick="retryCurrentPage()">Tentar Novamente</button>
+                            <button type="button" class="btn btn-sm btn-outline text-white hover:bg-white hover:text-red-700 font-bold" onclick="skipCurrentPage()">Pular Página</button>
+                            <button type="button" class="btn btn-sm btn-outline text-white hover:bg-white hover:text-red-700 font-bold" onclick="skipCurrentUlo()">Pular ULO</button>
+                            <button type="button" class="btn btn-sm btn-ghost text-white font-bold" onclick="cancelSync()">Cancelar Sincronização</button>
                         </div>
                     </div>
                 </div>
@@ -114,6 +141,69 @@
         let currentPage = 1;
         let totalImported = 0;
         let isSyncing = false;
+        
+        let errorAttempts = 0;
+        const maxAutoRetries = 3;
+        const autoRetryDelayMs = 3000;
+
+        const STORAGE_KEY = 'receivables_sync_progress';
+
+        // Check if there is saved progress on load
+        window.addEventListener('DOMContentLoaded', () => {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                try {
+                    const progress = JSON.parse(saved);
+                    if (progress && progress.uloIndex < activeUlos.length) {
+                        const uloName = activeUlos[progress.uloIndex].name;
+                        document.getElementById('resume-banner-text').textContent = `Detectamos um progresso salvo da ULO: ${uloName} (Página ${progress.page}, total importado: ${progress.totalImported}).`;
+                        document.getElementById('resume-banner').classList.remove('hidden');
+                    }
+                } catch (e) {
+                    localStorage.removeItem(STORAGE_KEY);
+                }
+            }
+        });
+
+        function resumeSync() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                try {
+                    const progress = JSON.parse(saved);
+                    currentUloIndex = progress.uloIndex;
+                    currentPage = progress.page;
+                    totalImported = progress.totalImported;
+                    
+                    document.getElementById('resume-banner').classList.add('hidden');
+                    
+                    isSyncing = true;
+                    errorAttempts = 0;
+                    document.getElementById('btn-start-sync').disabled = true;
+                    document.getElementById('btn-start-sync').classList.add('loading');
+                    document.getElementById('progress-container').classList.remove('hidden');
+                    document.getElementById('error-controls').classList.add('hidden');
+                    
+                    appendLog(`[Retomado] Retomando sincronização a partir da ULO ${activeUlos[currentUloIndex].name} - Página ${currentPage}...`);
+                    syncNext();
+                } catch (e) {
+                    startSync();
+                }
+            }
+        }
+
+        function clearSavedProgress() {
+            localStorage.removeItem(STORAGE_KEY);
+            document.getElementById('resume-banner').classList.add('hidden');
+            appendLog('[Progresso] Registro de progresso anterior limpo.');
+        }
+
+        function saveProgress() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                uloIndex: currentUloIndex,
+                page: currentPage,
+                totalImported: totalImported
+            }));
+        }
 
         function appendLog(message, isError = false) {
             const logsConsole = document.getElementById('logs-console');
@@ -143,19 +233,26 @@
             currentUloIndex = 0;
             currentPage = 1;
             totalImported = 0;
+            errorAttempts = 0;
 
+            localStorage.removeItem(STORAGE_KEY);
+            document.getElementById('resume-banner').classList.add('hidden');
             document.getElementById('btn-start-sync').disabled = true;
             document.getElementById('btn-start-sync').classList.add('loading');
             document.getElementById('progress-container').classList.remove('hidden');
+            document.getElementById('error-controls').classList.add('hidden');
             
             appendLog('Iniciando sincronização das ULOs configuradas...');
             syncNext();
         }
 
         async function syncNext() {
+            if (!isSyncing) return;
+
             if (currentUloIndex >= activeUlos.length) {
                 // Sincronização completa de todas as ULOs!
                 isSyncing = false;
+                localStorage.removeItem(STORAGE_KEY);
                 document.getElementById('btn-start-sync').disabled = false;
                 document.getElementById('btn-start-sync').classList.remove('loading');
                 
@@ -163,6 +260,7 @@
                 document.getElementById('sync-progress').value = 100;
                 document.getElementById('progress-text-left').textContent = 'Pronto';
                 document.getElementById('progress-text-right').textContent = '100%';
+                document.getElementById('error-controls').classList.add('hidden');
                 
                 appendLog(`[Concluído] Sincronização de todas as ULOs finalizada com sucesso! Total de ${totalImported} registros importados/atualizados.`);
                 
@@ -177,6 +275,7 @@
             
             document.getElementById('progress-title').textContent = `Sincronizando ${currentUlo.name}...`;
             document.getElementById('progress-text-left').textContent = `Processando página ${currentPage}...`;
+            document.getElementById('error-controls').classList.add('hidden');
 
             try {
                 const response = await fetch("{{ route('dev-settings.sync-page') }}", {
@@ -194,17 +293,21 @@
 
                 if (!response.ok) {
                     const errorData = await response.json();
-                    throw new Error(errorData.message || 'Erro de comunicação com o servidor.');
+                    throw new Error(errorData.message || `Erro HTTP ${response.status}`);
                 }
 
                 const result = await response.json();
 
                 if (!result.success) {
-                    throw new Error(result.message || 'Erro desconhecido retornado pelo servidor.');
+                    throw new Error(result.message || 'Erro de sincronização.');
                 }
 
-                // Sucesso na página
+                // Sucesso na página - Reseta tentativas de erro
+                errorAttempts = 0;
                 totalImported += result.imported_count;
+                
+                // Salva progresso no localStorage
+                saveProgress();
                 
                 // Calcula percentual para a ULO atual
                 const totalPages = result.total_pages || 1;
@@ -221,6 +324,7 @@
                     // Incrementa ULO index, reseta página
                     currentUloIndex++;
                     currentPage = 1;
+                    saveProgress();
                 } else {
                     // Próxima página da ULO atual
                     currentPage++;
@@ -230,16 +334,96 @@
                 syncNext();
 
             } catch (error) {
-                appendLog(`[Erro] ${currentUlo.name} (Página ${currentPage}): ${error.message}`, true);
-                
-                // Para a sincronização para permitir intervenção
-                isSyncing = false;
-                document.getElementById('btn-start-sync').disabled = false;
-                document.getElementById('btn-start-sync').classList.remove('loading');
-                
-                document.getElementById('progress-title').textContent = 'Erro na sincronização';
-                document.getElementById('progress-text-left').textContent = 'Operação interrompida por erro.';
+                let message = error.message || '';
+                let delay = autoRetryDelayMs;
+                let isRateLimitOrLock = false;
+
+                // Analisar mensagem de erro da Omie para definir delay dinâmico
+                if (message.includes('Consumo redundante') || message.includes('REDUNDANT')) {
+                    const match = message.match(/Aguarde\s+(\d+)\s+segundos/i);
+                    const seconds = match ? parseInt(match[1], 10) : 60;
+                    delay = (seconds + 3) * 1000;
+                    isRateLimitOrLock = true;
+                    appendLog(`[Rate Limit] Limite do Omie. Aguardando ${seconds + 3} segundos para tentar novamente de forma automática...`, true);
+                } else if (message.includes('Já existe uma requisição') || message.includes('Client-8020')) {
+                    delay = 15000;
+                    isRateLimitOrLock = true;
+                    appendLog(`[Lock] Requisição em andamento no Omie. Aguardando 15 segundos para liberação do lock...`, true);
+                }
+
+                if (!isRateLimitOrLock) {
+                    errorAttempts++;
+                    appendLog(`[Falha] ${currentUlo.name} (Pág. ${currentPage}) | Tentativa ${errorAttempts}/${maxAutoRetries} falhou: ${message}`, true);
+                }
+
+                if (isRateLimitOrLock || errorAttempts < maxAutoRetries) {
+                    if (!isRateLimitOrLock) {
+                        appendLog(`Aguardando ${delay/1000}s para tentar novamente de forma automática...`);
+                    }
+                    
+                    document.getElementById('progress-title').textContent = 'Tentando recuperar...';
+                    document.getElementById('progress-text-left').textContent = isRateLimitOrLock
+                        ? `Aguardando liberação de taxa/lock (${delay/1000}s)...`
+                        : `Auto-retry em andamento (${errorAttempts}/${maxAutoRetries})`;
+                    
+                    setTimeout(() => {
+                        syncNext();
+                    }, delay);
+                } else {
+                    // Limite de auto-retries atingido. Pausa e mostra controles manuais
+                    isSyncing = false;
+                    document.getElementById('btn-start-sync').disabled = false;
+                    document.getElementById('btn-start-sync').classList.remove('loading');
+                    
+                    document.getElementById('progress-title').textContent = 'Erro na sincronização';
+                    document.getElementById('progress-text-left').textContent = 'Aguardando ação do operador.';
+                    document.getElementById('error-controls').classList.remove('hidden');
+                    appendLog(`[Erro Crítico] Limite de tentativas automáticas atingido. O progresso foi salvo e pode ser retomado.`, true);
+                }
             }
+        }
+
+        // Funções para controle manual de recuperação de erros
+        function retryCurrentPage() {
+            appendLog(`[Manual] Reiniciando processamento da ULO ${activeUlos[currentUloIndex].name} - Página ${currentPage}...`);
+            isSyncing = true;
+            errorAttempts = 0;
+            document.getElementById('btn-start-sync').disabled = true;
+            document.getElementById('btn-start-sync').classList.add('loading');
+            syncNext();
+        }
+
+        function skipCurrentPage() {
+            appendLog(`[Manual] Pulando página ${currentPage} da ULO ${activeUlos[currentUloIndex].name}...`);
+            isSyncing = true;
+            errorAttempts = 0;
+            currentPage++;
+            saveProgress();
+            document.getElementById('btn-start-sync').disabled = true;
+            document.getElementById('btn-start-sync').classList.add('loading');
+            syncNext();
+        }
+
+        function skipCurrentUlo() {
+            appendLog(`[Manual] Pulando o restante da ULO ${activeUlos[currentUloIndex].name}...`);
+            isSyncing = true;
+            errorAttempts = 0;
+            currentUloIndex++;
+            currentPage = 1;
+            saveProgress();
+            document.getElementById('btn-start-sync').disabled = true;
+            document.getElementById('btn-start-sync').classList.add('loading');
+            syncNext();
+        }
+
+        function cancelSync() {
+            appendLog(`[Manual] Sincronização cancelada. Progresso salvo localmente.`);
+            isSyncing = false;
+            document.getElementById('btn-start-sync').disabled = false;
+            document.getElementById('btn-start-sync').classList.remove('loading');
+            document.getElementById('progress-title').textContent = 'Sincronização cancelada';
+            document.getElementById('progress-text-left').textContent = 'Operação abortada.';
+            document.getElementById('error-controls').classList.add('hidden');
         }
     </script>
 </x-app-layout>

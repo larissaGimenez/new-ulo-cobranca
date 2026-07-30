@@ -42,9 +42,9 @@ class OmieCliente extends Model
         'info' => 'array',
     ];
 
-    public function contasPagar()
+    public function contasReceber()
     {
-        return $this->hasMany(OmieContaPagar::class, 'codigo_cliente_fornecedor', 'codigo_cliente_omie')
+        return $this->hasMany(OmieContaReceber::class, 'codigo_cliente_fornecedor', 'codigo_cliente_omie')
             ->where('ulo_source', $this->ulo_source);
     }
 }

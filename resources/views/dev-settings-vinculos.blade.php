@@ -10,14 +10,15 @@
             <div class="bg-base-100 overflow-hidden shadow-xl sm:rounded-lg p-6 border border-base-200">
                 <!-- Navigation Tabs -->
                 <div class="tabs tabs-lifted mb-6">
-                    <a href="{{ route('dev-settings') }}" class="tab font-semibold">Contas a Pagar</a>
+                    <a href="{{ route('dev-settings') }}" class="tab font-semibold">Contas a Receber</a>
                     <a href="{{ route('dev-settings.clientes') }}" class="tab font-semibold">Clientes</a>
                     <a href="{{ route('dev-settings.vinculos') }}" class="tab tab-active font-semibold">Vínculos</a>
+                    <a href="{{ route('dev-settings.contas') }}" class="tab font-semibold">Contas Correntes</a>
                 </div>
 
                 <h3 class="text-lg font-bold mb-4 text-base-content">Diagnóstico de Vínculos (Relacionamentos)</h3>
                 <p class="text-sm text-base-content/70 mb-6">
-                    Esta ferramenta realiza uma análise rápida no banco de dados local para verificar o relacionamento entre as tabelas de Clientes e Títulos (Contas a Pagar) com base nas colunas <code>codigo_cliente_fornecedor</code> e <code>codigo_cliente_omie</code>.
+                    Esta ferramenta realiza uma análise rápida no banco de dados local para verificar o relacionamento entre as tabelas de Clientes e Títulos (Contas a Receber) com base nas colunas <code>codigo_cliente_fornecedor</code> e <code>codigo_cliente_omie</code>.
                 </p>
 
                 <!-- Cards com Estatísticas Gerais -->
