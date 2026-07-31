@@ -96,7 +96,6 @@
                         Nenhum cliente encontrado com os filtros selecionados nesta aba.
                     </td>
                 </tr>
-            @empty
             @endforelse
         </tbody>
     </table>

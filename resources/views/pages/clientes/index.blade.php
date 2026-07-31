@@ -1,25 +1,17 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex justify-between items-center">
-            <h2 class="font-semibold text-xl text-base-content leading-tight">
-                {{ __('Clientes') }}
-            </h2>
-        </div>
-    </x-slot>
-
     <!-- Include jQuery -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 
     <!-- daisyUI Drawer Component -->
-    <div class="drawer drawer-end min-h-screen">
+    <div class="drawer drawer-end flex-1 flex flex-col min-h-0 overflow-hidden">
         <input id="filter-drawer" type="checkbox" class="drawer-toggle" />
         
         <!-- Drawer Main Content -->
-        <div class="drawer-content py-6">
-            <div class="w-full px-4 sm:px-6 lg:px-8">
+        <div class="drawer-content py-0 flex-1 flex flex-col min-h-0 overflow-hidden">
+            <div class="w-full flex-1 flex flex-col min-h-0 overflow-hidden">
 
                 <!-- Action Bar & Filter Trigger & View Mode Selector -->
-                <div class="bg-base-100 shadow-xl sm:rounded-lg p-4 mb-6 border border-base-200 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
+                <div class="bg-base-100 shadow-sm rounded-xl p-2.5 mb-2.5 border border-base-200 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 shrink-0">
                     @php
                         $activeFiltersCount = 0;
                         if(!empty($search)) $activeFiltersCount++;
@@ -69,7 +61,7 @@
                 </div>
 
                 <!-- Dynamic Container loaded via jQuery / Blade Partial -->
-                <div id="table-container">
+                <div id="table-container" class="flex-1 flex flex-col min-h-0 overflow-hidden">
                     @include('pages.clientes.partials.table-content')
                 </div>
             </div>

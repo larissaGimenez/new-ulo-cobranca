@@ -1,13 +1,13 @@
 <!-- Kanban Board View -->
-<div id="kanban-board-container" class="flex gap-4 overflow-x-auto pb-4 items-start w-full min-h-[600px]">
+<div id="kanban-board-container" class="flex-1 overflow-x-auto flex gap-3.5 items-stretch pb-1 w-full min-h-0">
     @foreach($kanbanColumns as $colId => $col)
-        <div class="kanban-column-wrapper flex flex-col bg-base-200/50 rounded-xl border border-base-300 shadow-xs transition-all duration-200 shrink-0 w-80 max-h-[calc(100vh-200px)]" 
+        <div class="kanban-column-wrapper flex flex-col bg-base-200/50 rounded-xl border border-base-300 shadow-xs transition-all duration-200 shrink-0 w-80 h-full max-h-full overflow-hidden" 
             data-col-id="{{ $colId }}"
             draggable="true">
             
             <!-- Column Header -->
-            <div class="kanban-column-header bg-base-200/90 p-3.5 flex flex-col gap-2 border-b border-base-300 cursor-grab active:cursor-grabbing rounded-t-xl shrink-0 {{ $col['border_color'] }}">
-                <!-- Header Line 1: Dot, Title, Badge & Action Icons (3-dots removed) -->
+            <div class="kanban-column-header bg-base-200/90 p-2.5 flex flex-col gap-1.5 border-b border-base-300 cursor-grab active:cursor-grabbing rounded-t-xl shrink-0 {{ $col['border_color'] }}">
+                <!-- Header Line 1: Dot, Title, Badge & Action Icons -->
                 <div class="flex justify-between items-center">
                     <div class="flex items-center gap-2 truncate pr-1">
                         <span class="w-2.5 h-2.5 rounded-full {{ $col['dot_color'] }} shrink-0"></span>
@@ -33,7 +33,7 @@
                 </div>
 
                 <!-- Header Line 2: Total Sum & DaisyUI Sort Dropdown -->
-                <div class="flex justify-between items-center text-xs font-medium border-t border-base-300/40 pt-2 column-summary-text" data-col="{{ $colId }}">
+                <div class="flex justify-between items-center text-xs font-medium border-t border-base-300/40 pt-1.5 column-summary-text" data-col="{{ $colId }}">
                     <div class="text-base-content/70">
                         Total: <span class="font-bold text-error">R$ <span class="col-total">{{ number_format($col['total'], 2, ',', '.') }}</span></span>
                     </div>
@@ -70,8 +70,8 @@
                 </div>
             </div>
 
-            <!-- Collapsed Vertical View Container (Includes Dot Color Badge) -->
-            <div class="collapsed-view-container hidden flex-col items-center py-5 px-2 gap-4 cursor-pointer min-h-[480px]">
+            <!-- Collapsed Vertical View Container -->
+            <div class="collapsed-view-container hidden flex-col items-center py-4 px-2 gap-4 cursor-pointer h-full max-h-full">
                 <button type="button" class="btn btn-circle btn-xs btn-ghost col-toggle-collapse" title="Expandir Coluna">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
@@ -84,10 +84,10 @@
                 <span class="badge badge-sm badge-neutral font-bold col-count-badge">{{ $col['count'] }}</span>
             </div>
 
-            <!-- Column Body / Scrollable Drop Container (max-h to fit screen) -->
-            <div class="kanban-column-body flex flex-col gap-3 p-3 max-h-[calc(100vh-270px)] overflow-y-auto custom-scrollbar transition-colors duration-150" data-stage="{{ $colId }}">
+            <!-- Column Body / Scrollable Drop Container -->
+            <div class="kanban-column-body flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2.5 p-2.5 min-h-0" data-stage="{{ $colId }}">
                 @if(count($col['items']) === 0)
-                    <div class="border-2 border-dashed border-base-300/80 rounded-xl p-8 text-center text-xs text-base-content/40 font-medium empty-placeholder my-auto">
+                    <div class="border-2 border-dashed border-base-300/80 rounded-xl p-6 text-center text-xs text-base-content/40 font-medium empty-placeholder my-auto">
                         Sem cards nesta etapa
                     </div>
                 @endif
@@ -100,7 +100,7 @@
                     @endphp
 
                     <!-- Kanban Card Item -->
-                    <div class="kanban-card bg-base-100 p-4 rounded-xl shadow-xs border border-base-200 hover:shadow-md transition cursor-grab active:cursor-grabbing flex flex-col justify-between gap-3 group relative"
+                    <div class="kanban-card bg-base-100 p-3.5 rounded-xl shadow-xs border border-base-200 hover:shadow-md transition cursor-grab active:cursor-grabbing flex flex-col justify-between gap-2.5 group relative"
                         draggable="true" 
                         data-cnpj="{{ $cliente->cnpj_cpf }}"
                         data-name="{{ strtolower($cliente->name) }}"
@@ -112,11 +112,11 @@
                             <h5 class="font-bold text-sm text-base-content leading-snug truncate" title="{{ $cliente->name }}">
                                 {{ $cliente->name }}
                             </h5>
-                            <span class="w-2.5 h-2.5 rounded-full {{ $dotColor }} absolute top-4 right-4" title="Status de Atraso"></span>
+                            <span class="w-2.5 h-2.5 rounded-full {{ $dotColor }} absolute top-3.5 right-3.5" title="Status de Atraso"></span>
                         </div>
 
                         <!-- Card Footer -->
-                        <div class="pt-2 border-t border-base-200/60 flex justify-between items-end mt-1">
+                        <div class="pt-2 border-t border-base-200/60 flex justify-between items-end mt-0.5">
                             <div>
                                 <span class="text-[10px] font-bold text-base-content/40 uppercase tracking-wider block">DÍVIDA</span>
                                 <span class="font-bold text-sm text-base-content">R$ {{ number_format($divida, 2, ',', '.') }}</span>
@@ -136,8 +136,8 @@
     @endforeach
 
     <!-- Adicionar Etapa Column Card -->
-    <div id="btn-add-column-card" class="kanban-add-column-card bg-base-200/30 hover:bg-base-200/60 border-2 border-dashed border-base-300 hover:border-primary/50 rounded-xl flex flex-col justify-center items-center cursor-pointer transition p-8 text-base-content/40 hover:text-primary w-80 shrink-0 h-[calc(100vh-270px)] group">
-        <div class="text-6xl font-light leading-none group-hover:scale-110 transition-transform select-none">
+    <div id="btn-add-column-card" class="kanban-add-column-card bg-base-200/30 hover:bg-base-200/60 border-2 border-dashed border-base-300 hover:border-primary/50 rounded-xl flex flex-col justify-center items-center cursor-pointer transition p-8 text-base-content/40 hover:text-primary w-80 shrink-0 h-full group">
+        <div class="text-5xl font-light leading-none group-hover:scale-110 transition-transform select-none">
             +
         </div>
         <span class="font-bold text-xs tracking-widest mt-4 uppercase text-base-content/60 group-hover:text-primary">ADICIONAR ETAPA</span>

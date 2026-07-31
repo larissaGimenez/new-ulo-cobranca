@@ -23,12 +23,12 @@
         <div class="drawer lg:drawer-open min-h-screen bg-base-100">
             <input id="main-drawer" type="checkbox" class="drawer-toggle" />
             
-            <div class="drawer-content flex flex-col min-h-screen">
+            <div class="drawer-content flex flex-col h-screen max-h-screen overflow-hidden">
                 <!-- Navbar -->
                 @include('layouts.navbar.index')
 
                 <!-- Page Content -->
-                <main class="flex-grow p-4 md:p-6 bg-base-100">
+                <main class="flex-1 flex flex-col min-h-0 overflow-hidden p-2 sm:p-3 bg-base-100">
                     {{ $slot }}
                 </main>
             </div>
