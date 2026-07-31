@@ -104,8 +104,9 @@
                 @foreach($col['items'] as $cliente)
                     @php
                         $divida = ($tab === 'inadimplentes_redecard') ? $cliente->divida_redecard : $cliente->divida_comum;
-                        $dotColor = $cliente->dias_atraso > 90 ? 'bg-error' : ($cliente->dias_atraso > 30 ? 'bg-warning' : ($cliente->dias_atraso > 0 ? 'bg-info' : 'bg-success'));
                         $atrasoColor = $cliente->dias_atraso > 90 ? 'text-error' : ($cliente->dias_atraso > 30 ? 'text-warning' : ($cliente->dias_atraso > 0 ? 'text-info' : 'text-success'));
+                        $faixaBadgeClass = $cliente->dias_atraso > 90 ? 'badge-error text-white' : ($cliente->dias_atraso > 30 ? 'badge-warning text-base-content' : ($cliente->dias_atraso > 0 ? 'badge-info text-white' : 'badge-success text-white'));
+                        $faixaText = $cliente->dias_atraso > 90 ? '120' : ($cliente->dias_atraso > 30 ? '90' : ($cliente->dias_atraso > 0 ? '30' : '0'));
                     @endphp
 
                     <!-- Kanban Card Item -->
@@ -117,11 +118,20 @@
                         data-atraso="{{ $cliente->dias_atraso }}">
                         
                         <!-- Top Header -->
-                        <div class="flex justify-between items-start pr-4">
+                        <div class="flex justify-between items-start gap-2">
                             <h5 class="font-bold text-sm text-base-content leading-snug truncate" title="{{ $cliente->name }}">
                                 {{ $cliente->name }}
                             </h5>
-                            <span class="w-2.5 h-2.5 rounded-full {{ $dotColor }} absolute top-3.5 right-3.5" title="Status de Atraso"></span>
+                            <!-- Faixa de Atraso Badge Explicitly Labeled -->
+                            @if($cliente->dias_atraso > 0)
+                                <span class="badge badge-xs font-bold px-1.5 py-1 shrink-0 {{ $faixaBadgeClass }}" title="Faixa de Atraso: {{ $cliente->dias_atraso }} dias">
+                                    Faixa {{ $faixaText }}
+                                </span>
+                            @else
+                                <span class="badge badge-xs badge-success text-white font-bold px-1.5 py-1 shrink-0" title="Cliente sem débitos atrasados">
+                                    Em Dia
+                                </span>
+                            @endif
                         </div>
 
                         <!-- Card Footer -->
