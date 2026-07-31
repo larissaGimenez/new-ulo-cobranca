@@ -20,6 +20,7 @@
                         @endif
                     </button>
                 </th>
+                <th class="font-bold">Etapa (Kanban)</th>
                 <th class="text-right">
                     <button type="button" data-action="sort" data-sort-by="divida" data-sort-dir="{{ $sortBy === 'divida' && $sortDir === 'asc' ? 'desc' : 'asc' }}" class="flex items-center justify-end gap-1 group font-bold w-full hover:text-primary">
                         Dívida Total
@@ -51,6 +52,13 @@
                     <!-- CNPJ -->
                     <td class="font-mono text-sm">{{ $cliente->cnpj_cpf }}</td>
                     
+                    <!-- Etapa (Kanban Stage Flag) -->
+                    <td class="whitespace-nowrap">
+                        <span class="badge badge-sm font-bold text-white px-2.5 py-1 shadow-xs {{ $cliente->stage_dot_color ?? 'bg-primary' }}">
+                            {{ $cliente->stage_title ?? 'INADIMPLÊNCIA' }}
+                        </span>
+                    </td>
+
                     <!-- Dívida -->
                     <td class="text-right font-semibold">
                         @if($tab === 'inadimplentes')
@@ -92,7 +100,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="{{ $tab !== 'adimplentes' ? 6 : 4 }}" class="text-center text-base-content/50 py-10">
+                    <td colspan="{{ $tab !== 'adimplentes' ? 7 : 5 }}" class="text-center text-base-content/50 py-10">
                         Nenhum cliente encontrado com os filtros selecionados nesta aba.
                     </td>
                 </tr>

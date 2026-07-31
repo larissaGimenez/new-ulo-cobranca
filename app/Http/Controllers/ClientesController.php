@@ -229,6 +229,9 @@ class ClientesController extends Controller
             if (!isset($kanbanColumns[$stg])) {
                 $stg = $firstColSlug;
             }
+            $row->stage_title = $kanbanColumns[$stg]['title'];
+            $row->stage_dot_color = $kanbanColumns[$stg]['dot_color'];
+
             $kanbanColumns[$stg]['items'][] = $row;
             $kanbanColumns[$stg]['count']++;
             $amount = ($tab === 'inadimplentes_redecard') ? (float)$row->divida_redecard : (float)$row->divida_comum;
@@ -361,10 +364,12 @@ class ClientesController extends Controller
             return response()->json(['error' => 'Coluna não informada'], 400);
         }
 
-        $firstCol = DB::table('kanban_columns')->where('slug', '!=', $slug)->orderBy('position', 'asc')->first();
-        $fallbackSlug = $firstCol ? $firstCol->slug : 'inadimplencia';
+        // Count how many clients are explicitly in this stage
+        $clientCount = DB::table('client_kanban_stages')->where('stage', $slug)->count();
+        if ($clientCount > 0) {
+            return response()->json(['error' => 'Não é possível excluir uma coluna que possui cards. Mova ou remova os cards primeiro.'], 400);
+        }
 
-        DB::table('client_kanban_stages')->where('stage', $slug)->update(['stage' => $fallbackSlug]);
         DB::table('kanban_columns')->where('slug', $slug)->delete();
 
         return response()->json(['success' => true]);
