@@ -51,4 +51,8 @@ Route::middleware([
     Route::put('/configuracoes', [SettingsController::class, 'update'])->name('configuracoes.update');
 
     Route::get('/clientes', [ClientesController::class, 'index'])->name('clientes');
+    Route::post('/clientes/update-stage', [ClientesController::class, 'updateStage'])->name('clientes.update-stage');
+    Route::post('/clientes/kanban/column/store', [ClientesController::class, 'storeColumn'])->name('clientes.kanban.column.store');
+    Route::post('/clientes/kanban/column/reorder', [ClientesController::class, 'reorderColumns'])->name('clientes.kanban.column.reorder');
+    Route::post('/clientes/kanban/column/delete', [ClientesController::class, 'deleteColumn'])->name('clientes.kanban.column.delete');
 });

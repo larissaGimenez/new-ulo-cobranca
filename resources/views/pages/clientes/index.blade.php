@@ -18,7 +18,7 @@
         <div class="drawer-content py-6">
             <div class="w-full px-4 sm:px-6 lg:px-8">
 
-                <!-- Action Bar & Filter Trigger -->
+                <!-- Action Bar & Filter Trigger & View Mode Selector -->
                 <div class="bg-base-100 shadow-xl sm:rounded-lg p-4 mb-6 border border-base-200 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
                     <!-- Quick Search Bar -->
                     <form id="quick-search-form" method="GET" action="{{ route('clientes') }}" class="flex-1 flex gap-2">
@@ -33,7 +33,7 @@
                         </div>
                     </form>
 
-                    <!-- Drawer Toggle Button -->
+                    <!-- View Mode Selector & Drawer Toggle Button -->
                     @php
                         $activeFiltersCount = 0;
                         if(!empty($search)) $activeFiltersCount++;
@@ -41,7 +41,24 @@
                         if($tab !== 'adimplentes' && $faixa !== 'all') $activeFiltersCount++;
                     @endphp
 
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-3">
+                        <!-- View Mode Toggle (Kanban / Lista) -->
+                        <div class="join border border-base-300 rounded-lg p-0.5 bg-base-200">
+                            <button type="button" data-action="change-view" data-view="kanban" class="join-item btn btn-sm {{ $viewMode === 'kanban' ? 'btn-primary' : 'btn-ghost' }} gap-2 font-bold">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                                </svg>
+                                <span>Kanban</span>
+                            </button>
+                            <button type="button" data-action="change-view" data-view="lista" class="join-item btn btn-sm {{ $viewMode === 'lista' ? 'btn-primary' : 'btn-ghost' }} gap-2 font-bold">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                                </svg>
+                                <span>Lista</span>
+                            </button>
+                        </div>
+
+                        <!-- Drawer Filter Trigger -->
                         <label for="filter-drawer" class="btn btn-outline btn-primary gap-2 cursor-pointer">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
@@ -65,6 +82,7 @@
             <div class="bg-base-100 min-h-full w-80 sm:w-96 p-6 text-base-content flex flex-col justify-between shadow-2xl border-l border-base-200">
                 <form id="drawer-filter-form" method="GET" action="{{ route('clientes') }}" class="flex flex-col justify-between h-full">
                     <!-- Hidden State Inputs -->
+                    <input type="hidden" name="view_mode" id="filter-view-mode" value="{{ $viewMode }}">
                     <input type="hidden" name="tab" id="filter-tab" value="{{ $tab }}">
                     <input type="hidden" name="sort_by" id="filter-sort-by" value="{{ $sortBy }}">
                     <input type="hidden" name="sort_dir" id="filter-sort-dir" value="{{ $sortDir }}">
@@ -137,7 +155,7 @@
         </div>
     </div>
 
-    <!-- jQuery Dynamic AJAX Handler -->
+    <!-- jQuery Dynamic AJAX Handler & Kanban Drag & Drop & Column Management -->
     <script>
         $(document).ready(function () {
             let searchTimer = null;
@@ -165,7 +183,6 @@
 
                 // Merge custom parameters
                 $.each(customParams, function(key, val) {
-                    // Remove existing parameter if present
                     formData = formData.filter(item => item.name !== key && item.name !== key + '[]');
                     if (Array.isArray(val)) {
                         val.forEach(v => formData.push({ name: key + '[]', value: v }));
@@ -190,6 +207,10 @@
 
                         // Update drawer filter counter badge
                         updateBadgeCounter();
+
+                        // Rebind Kanban drag events and restore collapsed states
+                        initKanbanDragAndDrop();
+                        restoreCollapsedColumns();
                     },
                     error: function (xhr) {
                         console.error('Erro ao buscar dados:', xhr);
@@ -221,7 +242,7 @@
                 }
             }
 
-            // Live Search Debouncing (Quick Search & Drawer Search)
+            // Live Search Debouncing
             $('#quick-search-input').on('keyup input', function () {
                 syncInputs('quick');
                 clearTimeout(searchTimer);
@@ -241,16 +262,15 @@
                 fetchFilteredData({}, true);
             });
 
-            // Drawer Form Submit (Applies all selected filters at once)
+            // Drawer Form Submit
             $('#drawer-filter-form').on('submit', function (e) {
                 e.preventDefault();
                 syncInputs('drawer');
                 fetchFilteredData({}, true);
-                // Close drawer automatically after applying filters
                 $('#filter-drawer').prop('checked', false);
             });
 
-            // Toggle All ULOs inside drawer without immediate fetch
+            // Toggle All ULOs
             $('#toggle-all-ulos').on('click', function () {
                 let $checkboxes = $('.filter-ulo-checkbox');
                 let allChecked = $checkboxes.filter(':checked').length === $checkboxes.length;
@@ -285,7 +305,6 @@
                 let newTab = $(this).data('tab');
                 $('#filter-tab').val(newTab);
 
-                // Disable or enable faixa select depending on tab
                 if (newTab === 'adimplentes') {
                     $('#filter-faixa-select').prop('disabled', true);
                 } else {
@@ -295,7 +314,18 @@
                 fetchFilteredData({ tab: newTab }, true);
             });
 
-            // Dynamic Sort Click
+            // Switch View Mode (Kanban / Lista)
+            $(document).on('click', '[data-action="change-view"]', function () {
+                let view = $(this).data('view');
+                $('#filter-view-mode').val(view);
+
+                $('[data-action="change-view"]').removeClass('btn-primary').addClass('btn-ghost');
+                $(this).removeClass('btn-ghost').addClass('btn-primary');
+
+                fetchFilteredData({ view_mode: view }, false);
+            });
+
+            // Dynamic Sort Click in List View
             $(document).on('click', '[data-action="sort"]', function () {
                 let sortBy = $(this).data('sort-by');
                 let sortDir = $(this).data('sort-dir');
@@ -306,7 +336,7 @@
                 fetchFilteredData({ sort_by: sortBy, sort_dir: sortDir }, false);
             });
 
-            // Intercept Pagination Links for AJAX Pagination
+            // Intercept Pagination Links
             $(document).on('click', '.ajax-pagination a', function (e) {
                 e.preventDefault();
                 let url = $(this).attr('href');
@@ -319,18 +349,287 @@
                 fetchFilteredData({ page: page }, false);
             });
 
-            // Handle browser Back/Forward navigation
-            window.onpopstate = function () {
-                let urlParams = new URLSearchParams(window.location.search);
-                let page = urlParams.get('page') || 1;
-                let search = urlParams.get('search') || '';
+            // --- Per-Column Search & Sort in Kanban ---
+            $(document).on('keyup input', '.col-search-input', function () {
+                let query = $(this).val().toLowerCase().trim();
+                let $column = $(this).closest('.kanban-column-wrapper');
 
-                $('#quick-search-input').val(search);
-                $('#drawer-search-input').val(search);
-                $('#filter-page').val(page);
+                $column.find('.kanban-card').each(function () {
+                    let name = $(this).data('name') || '';
+                    if (name.includes(query)) {
+                        $(this).removeClass('hidden');
+                    } else {
+                        $(this).addClass('hidden');
+                    }
+                });
+            });
 
-                fetchFilteredData({}, false);
-            };
+            $(document).on('change', '.col-sort-select', function () {
+                let sortVal = $(this).val();
+                let $columnBody = $(this).closest('.kanban-column-wrapper').find('.kanban-column-body');
+                let $cards = $columnBody.find('.kanban-card').get();
+
+                if (sortVal === 'default') return;
+
+                $cards.sort(function (a, b) {
+                    let nameA = $(a).data('name');
+                    let nameB = $(b).data('name');
+                    let amountA = parseFloat($(a).data('amount')) || 0;
+                    let amountB = parseFloat($(b).data('amount')) || 0;
+                    let atrasoA = parseInt($(a).data('atraso')) || 0;
+                    let atrasoB = parseInt($(b).data('atraso')) || 0;
+
+                    if (sortVal === 'name_asc') return nameA.localeCompare(nameB);
+                    if (sortVal === 'name_desc') return nameB.localeCompare(nameA);
+                    if (sortVal === 'divida_desc') return amountB - amountA;
+                    if (sortVal === 'divida_asc') return amountA - amountB;
+                    if (sortVal === 'atraso_desc') return atrasoB - atrasoA;
+                    if (sortVal === 'atraso_asc') return atrasoA - atrasoB;
+                    return 0;
+                });
+
+                $.each($cards, function (idx, item) {
+                    $columnBody.append(item);
+                });
+            });
+
+            // --- Column Collapse / Expand Handling ---
+            $(document).on('click', '.col-toggle-collapse', function () {
+                let $col = $(this).closest('.kanban-column-wrapper');
+                let colId = $col.data('col-id');
+
+                $col.toggleClass('is-collapsed w-80 w-14 min-w-[3.5rem]');
+                if ($col.hasClass('is-collapsed')) {
+                    $col.find('.kanban-column-header, .kanban-column-body').addClass('hidden');
+                    $col.find('.collapsed-view-container').removeClass('hidden').addClass('flex');
+                    saveCollapsedState(colId, true);
+                } else {
+                    $col.find('.kanban-column-header, .kanban-column-body').removeClass('hidden');
+                    $col.find('.collapsed-view-container').addClass('hidden').removeClass('flex');
+                    saveCollapsedState(colId, false);
+                }
+            });
+
+            function saveCollapsedState(colId, isCollapsed) {
+                let collapsed = JSON.parse(localStorage.getItem('kanban_collapsed_cols') || '[]');
+                if (isCollapsed) {
+                    if (!collapsed.includes(colId)) collapsed.push(colId);
+                } else {
+                    collapsed = collapsed.filter(id => id !== colId);
+                }
+                localStorage.setItem('kanban_collapsed_cols', JSON.stringify(collapsed));
+            }
+
+            function restoreCollapsedColumns() {
+                let collapsed = JSON.parse(localStorage.getItem('kanban_collapsed_cols') || '[]');
+                collapsed.forEach(function (colId) {
+                    let $col = $('.kanban-column-wrapper[data-col-id="' + colId + '"]');
+                    if ($col.length) {
+                        $col.addClass('is-collapsed w-14 min-w-[3.5rem]').removeClass('w-80');
+                        $col.find('.kanban-column-header, .kanban-column-body').addClass('hidden');
+                        $col.find('.collapsed-view-container').removeClass('hidden').addClass('flex');
+                    }
+                });
+            }
+
+            // --- Add New Kanban Column ---
+            $(document).on('click', '#btn-add-column', function () {
+                let name = prompt("Digite o nome da nova coluna para o Kanban:");
+                if (!name || name.trim() === '') return;
+
+                $.ajax({
+                    url: "{{ route('clientes.kanban.column.store') }}",
+                    type: "POST",
+                    data: {
+                        _token: "{{ csrf_token() }}",
+                        title: name.trim()
+                    },
+                    success: function () {
+                        fetchFilteredData({}, false);
+                    },
+                    error: function (err) {
+                        alert('Erro ao criar coluna: ' + (err.responseJSON?.error || 'Erro desconhecido'));
+                    }
+                });
+            });
+
+            // --- Delete Custom Kanban Column ---
+            $(document).on('click', '.col-delete-btn', function (e) {
+                e.stopPropagation();
+                let slug = $(this).data('slug');
+                if (!confirm("Deseja realmente excluir esta coluna? Os cards voltarão para a primeira etapa.")) return;
+
+                $.ajax({
+                    url: "{{ route('clientes.kanban.column.delete') }}",
+                    type: "POST",
+                    data: {
+                        _token: "{{ csrf_token() }}",
+                        slug: slug
+                    },
+                    success: function () {
+                        fetchFilteredData({}, false);
+                    },
+                    error: function (err) {
+                        alert('Erro ao excluir coluna');
+                    }
+                });
+            });
+
+            // --- HTML5 Drag & Drop for Cards and Columns ---
+            function initKanbanDragAndDrop() {
+                let draggedCard = null;
+                let draggedColumn = null;
+
+                // Card Drag
+                $(document).off('dragstart', '.kanban-card');
+                $(document).on('dragstart', '.kanban-card', function (e) {
+                    e.stopPropagation();
+                    draggedCard = this;
+                    draggedColumn = null;
+                    $(this).addClass('opacity-50 scale-95');
+                    e.originalEvent.dataTransfer.setData('text/plain', $(this).data('cnpj'));
+                    e.originalEvent.dataTransfer.effectAllowed = 'move';
+                });
+
+                $(document).off('dragend', '.kanban-card');
+                $(document).on('dragend', '.kanban-card', function (e) {
+                    e.stopPropagation();
+                    $(this).removeClass('opacity-50 scale-95');
+                    draggedCard = null;
+                });
+
+                // Column Drag Reordering
+                $(document).off('dragstart', '.kanban-column-wrapper');
+                $(document).on('dragstart', '.kanban-column-wrapper', function (e) {
+                    if (draggedCard) return;
+                    draggedColumn = this;
+                    $(this).addClass('opacity-40');
+                    e.originalEvent.dataTransfer.setData('text/plain', $(this).data('col-id'));
+                    e.originalEvent.dataTransfer.effectAllowed = 'move';
+                });
+
+                $(document).off('dragend', '.kanban-column-wrapper');
+                $(document).on('dragend', '.kanban-column-wrapper', function () {
+                    $(this).removeClass('opacity-40');
+                    draggedColumn = null;
+                });
+
+                // Drop target for Column Body (Card Move)
+                $(document).off('dragover dragenter', '.kanban-column-body');
+                $(document).on('dragover dragenter', '.kanban-column-body', function (e) {
+                    if (draggedColumn) return;
+                    e.preventDefault();
+                    e.originalEvent.dataTransfer.dropEffect = 'move';
+                    $(this).addClass('bg-primary/10 border-primary border-dashed');
+                });
+
+                $(document).off('dragleave drop', '.kanban-column-body');
+                $(document).on('dragleave', '.kanban-column-body', function () {
+                    $(this).removeClass('bg-primary/10 border-primary border-dashed');
+                });
+
+                $(document).on('drop', '.kanban-column-body', function (e) {
+                    if (draggedColumn) return;
+                    e.preventDefault();
+                    $(this).removeClass('bg-primary/10 border-primary border-dashed');
+
+                    if (!draggedCard) return;
+
+                    let $targetColumn = $(this);
+                    let targetStage = $targetColumn.data('stage');
+                    let cnpjCpf = $(draggedCard).data('cnpj');
+
+                    let $sourceColumn = $(draggedCard).closest('.kanban-column-body');
+                    let sourceStage = $sourceColumn.data('stage');
+
+                    if (sourceStage === targetStage) return;
+
+                    $targetColumn.find('.empty-placeholder').remove();
+                    $targetColumn.append(draggedCard);
+
+                    if ($sourceColumn.find('.kanban-card').length === 0) {
+                        $sourceColumn.append('<div class="border-2 border-dashed border-base-300/80 rounded-xl p-8 text-center text-xs text-base-content/40 font-medium empty-placeholder my-auto">Sem cards nesta etapa</div>');
+                    }
+
+                    updateColumnSummaries();
+
+                    $.ajax({
+                        url: "{{ route('clientes.update-stage') }}",
+                        type: "POST",
+                        data: {
+                            _token: "{{ csrf_token() }}",
+                            cnpj_cpf: cnpjCpf,
+                            stage: targetStage
+                        },
+                        error: function (err) {
+                            console.error('Erro ao atualizar etapa no Kanban:', err);
+                        }
+                    });
+                });
+
+                // Drop target for Column Wrapper (Reorder Columns)
+                $(document).off('dragover dragenter', '#kanban-board-container .kanban-column-wrapper');
+                $(document).on('dragover dragenter', '#kanban-board-container .kanban-column-wrapper', function (e) {
+                    if (!draggedColumn || draggedColumn === this) return;
+                    e.preventDefault();
+                });
+
+                $(document).off('drop', '#kanban-board-container .kanban-column-wrapper');
+                $(document).on('drop', '#kanban-board-container .kanban-column-wrapper', function (e) {
+                    if (!draggedColumn || draggedColumn === this) return;
+                    e.preventDefault();
+
+                    let $container = $('#kanban-board-container');
+                    let $cols = $container.children('.kanban-column-wrapper');
+                    let draggedIdx = $cols.index(draggedColumn);
+                    let targetIdx = $cols.index(this);
+
+                    if (draggedIdx < targetIdx) {
+                        $(this).after(draggedColumn);
+                    } else {
+                        $(this).before(draggedColumn);
+                    }
+
+                    // Collect new column order and save to DB
+                    let order = [];
+                    $container.children('.kanban-column-wrapper').each(function () {
+                        order.push($(this).data('col-id'));
+                    });
+
+                    $.ajax({
+                        url: "{{ route('clientes.kanban.column.reorder') }}",
+                        type: "POST",
+                        data: {
+                            _token: "{{ csrf_token() }}",
+                            order: order
+                        }
+                    });
+                });
+            }
+
+            // Recalculate summary stats for columns
+            function updateColumnSummaries() {
+                $('.kanban-column-body').each(function () {
+                    let colId = $(this).data('stage');
+                    let count = $(this).find('.kanban-card:not(.hidden)').length;
+                    let total = 0;
+
+                    $(this).find('.kanban-card:not(.hidden)').each(function () {
+                        total += parseFloat($(this).data('amount')) || 0;
+                    });
+
+                    let $summary = $('.column-summary-text[data-col="' + colId + '"]');
+                    $summary.find('.col-count').text(count);
+                    $summary.find('.col-total').text(total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+
+                    let $wrapper = $('.kanban-column-wrapper[data-col-id="' + colId + '"]');
+                    $wrapper.find('.col-count-badge').text(count);
+                });
+            }
+
+            // Initialize drag & drop and restore state on page load
+            initKanbanDragAndDrop();
+            restoreCollapsedColumns();
         });
     </script>
 </x-app-layout>
