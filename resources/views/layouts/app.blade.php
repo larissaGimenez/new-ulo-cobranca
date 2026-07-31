@@ -33,7 +33,7 @@
                 </main>
             </div>
             
-            <div class="drawer-side z-40">
+            <div class="drawer-side is-drawer-close:overflow-visible z-40">
                 <label for="main-drawer" aria-label="close sidebar" class="drawer-overlay"></label>
                 <!-- Sidebar -->
                 @include('layouts.sidebar.index')
