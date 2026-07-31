@@ -15,8 +15,8 @@
         <input id="filter-drawer" type="checkbox" class="drawer-toggle" />
         
         <!-- Drawer Main Content -->
-        <div class="drawer-content py-12">
-            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+        <div class="drawer-content py-6">
+            <div class="w-full px-4 sm:px-6 lg:px-8">
 
                 <!-- Action Bar & Filter Trigger -->
                 <div class="bg-base-100 shadow-xl sm:rounded-lg p-4 mb-6 border border-base-200 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">

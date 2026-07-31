@@ -126,7 +126,7 @@
                     @forelse($paginator as $cliente)
                         <tr class="hover">
                             <!-- Nome -->
-                            <td class="font-bold text-base-content max-w-xs truncate">{{ $cliente->name }}</td>
+                            <td class="font-bold text-base-content">{{ $cliente->name }}</td>
                             
                             <!-- CNPJ -->
                             <td class="font-mono text-sm">{{ $cliente->cnpj_cpf }}</td>
@@ -144,23 +144,23 @@
                             
                             <!-- Atraso e Faixa -->
                             @if($tab !== 'adimplentes')
-                                <td class="text-right font-mono">{{ $cliente->dias_atraso }} dias</td>
-                                <td class="text-center">
+                                <td class="text-right font-mono whitespace-nowrap">{{ $cliente->dias_atraso }} dias</td>
+                                <td class="text-center whitespace-nowrap">
                                     @if($cliente->dias_atraso <= 30)
-                                        <span class="badge badge-sm badge-info font-bold">Faixa 30</span>
+                                        <span class="badge badge-sm badge-info font-bold whitespace-nowrap">30</span>
                                     @elseif($cliente->dias_atraso <= 90)
-                                        <span class="badge badge-sm badge-warning font-bold">Faixa 90</span>
+                                        <span class="badge badge-sm badge-warning font-bold whitespace-nowrap">90</span>
                                     @else
-                                        <span class="badge badge-sm badge-error font-bold text-white">Faixa 120</span>
+                                        <span class="badge badge-sm badge-error font-bold text-white whitespace-nowrap">120</span>
                                     @endif
                                 </td>
                             @endif
 
                             <!-- ULO Badges -->
-                            <td>
-                                <div class="flex flex-wrap gap-1">
+                            <td class="whitespace-nowrap">
+                                <div class="flex flex-wrap gap-1 items-center">
                                     @foreach(explode(',', $cliente->all_ulos) as $ulo)
-                                        <span class="badge badge-outline badge-xs font-semibold">{{ $ulo }}</span>
+                                        <span class="badge badge-outline badge-sm font-semibold whitespace-nowrap">{{ trim($ulo) }}</span>
                                     @endforeach
                                 </div>
                             </td>
