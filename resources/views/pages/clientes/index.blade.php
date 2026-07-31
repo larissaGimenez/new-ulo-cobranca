@@ -20,8 +20,15 @@
 
                 <!-- Action Bar & Filter Trigger & View Mode Selector -->
                 <div class="bg-base-100 shadow-xl sm:rounded-lg p-4 mb-6 border border-base-200 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
-                    <!-- Quick Search Bar -->
-                    <form id="quick-search-form" method="GET" action="{{ route('clientes') }}" class="flex-1 flex gap-2">
+                    @php
+                        $activeFiltersCount = 0;
+                        if(!empty($search)) $activeFiltersCount++;
+                        if(!empty($selectedUlos) && count($selectedUlos) < count($availableUlos)) $activeFiltersCount++;
+                        if($tab !== 'adimplentes' && $faixa !== 'all') $activeFiltersCount++;
+                    @endphp
+
+                    <!-- Quick Search Bar & Filtros Button Side-by-Side -->
+                    <form id="quick-search-form" method="GET" action="{{ route('clientes') }}" class="flex-1 flex flex-wrap sm:flex-nowrap items-center gap-3">
                         <div class="join w-full max-w-xl">
                             <input type="text" id="quick-search-input" name="search" value="{{ $search }}" placeholder="Buscar por Nome, Fantasia ou CNPJ..." class="input input-bordered input-md w-full join-item" autocomplete="off" />
                             <button type="submit" class="btn btn-primary join-item">
@@ -31,18 +38,19 @@
                                 <span class="hidden md:inline">Buscar</span>
                             </button>
                         </div>
+
+                        <!-- Drawer Filter Trigger Button right next to search bar -->
+                        <label for="filter-drawer" class="btn btn-outline btn-primary gap-2 cursor-pointer shrink-0">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                            </svg>
+                            <span>Filtros</span>
+                            <span id="drawer-filter-badge" class="badge badge-sm badge-primary text-white font-bold {{ $activeFiltersCount > 0 ? '' : 'hidden' }}">{{ $activeFiltersCount }}</span>
+                        </label>
                     </form>
 
-                    <!-- View Mode Selector & Drawer Toggle Button -->
-                    @php
-                        $activeFiltersCount = 0;
-                        if(!empty($search)) $activeFiltersCount++;
-                        if(!empty($selectedUlos) && count($selectedUlos) < count($availableUlos)) $activeFiltersCount++;
-                        if($tab !== 'adimplentes' && $faixa !== 'all') $activeFiltersCount++;
-                    @endphp
-
+                    <!-- View Mode Selector (Kanban / Lista) -->
                     <div class="flex items-center gap-3">
-                        <!-- View Mode Toggle (Kanban / Lista) -->
                         <div class="join border border-base-300 rounded-lg p-0.5 bg-base-200">
                             <button type="button" data-action="change-view" data-view="kanban" class="join-item btn btn-sm {{ $viewMode === 'kanban' ? 'btn-primary' : 'btn-ghost' }} gap-2 font-bold">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -57,15 +65,6 @@
                                 <span>Lista</span>
                             </button>
                         </div>
-
-                        <!-- Drawer Filter Trigger -->
-                        <label for="filter-drawer" class="btn btn-outline btn-primary gap-2 cursor-pointer">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                            </svg>
-                            <span>Filtros</span>
-                            <span id="drawer-filter-badge" class="badge badge-sm badge-primary text-white font-bold {{ $activeFiltersCount > 0 ? '' : 'hidden' }}">{{ $activeFiltersCount }}</span>
-                        </label>
                     </div>
                 </div>
 
@@ -242,12 +241,15 @@
                 }
             }
 
-            // Live Search Debouncing
+            // Live Search Debouncing (>= 3 chars or empty, 300ms delay)
             $('#quick-search-input').on('keyup input', function () {
                 syncInputs('quick');
+                let query = $(this).val().trim();
                 clearTimeout(searchTimer);
                 searchTimer = setTimeout(function () {
-                    fetchFilteredData({}, true);
+                    if (query.length >= 3 || query.length === 0) {
+                        fetchFilteredData({}, true);
+                    }
                 }, 300);
             });
 

@@ -1,13 +1,13 @@
 <!-- Kanban Board View -->
-<div id="kanban-board-container" class="flex gap-4 overflow-x-auto pb-6 items-start w-full min-h-[650px]">
+<div id="kanban-board-container" class="flex gap-4 overflow-x-auto pb-4 items-start w-full min-h-[600px]">
     @foreach($kanbanColumns as $colId => $col)
-        <div class="kanban-column-wrapper flex flex-col bg-base-200/50 rounded-xl border border-base-300 shadow-xs transition-all duration-200 shrink-0 w-80" 
+        <div class="kanban-column-wrapper flex flex-col bg-base-200/50 rounded-xl border border-base-300 shadow-xs transition-all duration-200 shrink-0 w-80 max-h-[calc(100vh-200px)]" 
             data-col-id="{{ $colId }}"
             draggable="true">
             
             <!-- Column Header -->
-            <div class="kanban-column-header bg-base-200/80 p-3.5 flex flex-col gap-2.5 border-b border-base-300 cursor-grab active:cursor-grabbing rounded-t-xl {{ $col['border_color'] }}">
-                <!-- Header Line 1: Dot, Title, Badge & Action Icons -->
+            <div class="kanban-column-header bg-base-200/90 p-3.5 flex flex-col gap-2 border-b border-base-300 cursor-grab active:cursor-grabbing rounded-t-xl shrink-0 {{ $col['border_color'] }}">
+                <!-- Header Line 1: Dot, Title, Badge & Action Icons (3-dots removed) -->
                 <div class="flex justify-between items-center">
                     <div class="flex items-center gap-2 truncate pr-1">
                         <span class="w-2.5 h-2.5 rounded-full {{ $col['dot_color'] }} shrink-0"></span>
@@ -22,22 +22,6 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                             </svg>
                         </button>
-
-                        <!-- 3-Dots Dropdown Options -->
-                        <div class="dropdown dropdown-end">
-                            <button type="button" tabindex="0" class="btn btn-ghost btn-xs text-base-content/60 hover:text-base-content" title="Opções da coluna">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                                </svg>
-                            </button>
-                            <ul tabindex="0" class="dropdown-content z-30 menu p-1 shadow-lg bg-base-100 rounded-box w-44 text-xs border border-base-200">
-                                @if(!in_array($colId, ['inadimplencia', 'contato_inicial', 'em_negociacao', 'acordo_ativo', 'pagamento_concluido']))
-                                    <li><a class="text-error font-semibold col-delete-btn" data-slug="{{ $colId }}">Excluir Coluna</a></li>
-                                @else
-                                    <li class="disabled"><span class="text-base-content/40">Coluna Padrão</span></li>
-                                @endif
-                            </ul>
-                        </div>
 
                         <!-- Collapse Button -->
                         <button type="button" class="btn btn-ghost btn-xs text-base-content/60 hover:text-base-content col-toggle-collapse" title="Minimizar Coluna">
@@ -54,7 +38,7 @@
                         Total: <span class="font-bold text-error">R$ <span class="col-total">{{ number_format($col['total'], 2, ',', '.') }}</span></span>
                     </div>
 
-                    <!-- Visual Sort Dropdown Matching Screenshot -->
+                    <!-- Visual Sort Dropdown -->
                     <div class="dropdown dropdown-end">
                         <button type="button" tabindex="0" class="btn btn-ghost btn-xs text-xs font-semibold text-base-content/70 hover:text-base-content flex items-center gap-1 px-1">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-base-content/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -77,7 +61,7 @@
                     </div>
                 </div>
 
-                <!-- Collapsible Search Container (Hidden by default until search button clicked) -->
+                <!-- Collapsible Search Container -->
                 <div class="col-search-container hidden pt-1">
                     <div class="relative">
                         <input type="text" class="input input-xs input-bordered w-full pr-6 col-search-input" placeholder="Buscar nesta coluna..." autocomplete="off" />
@@ -86,21 +70,22 @@
                 </div>
             </div>
 
-            <!-- Collapsed Vertical View Container (Hidden by default) -->
-            <div class="collapsed-view-container hidden flex-col items-center py-6 px-2 gap-4 cursor-pointer min-h-[500px]">
+            <!-- Collapsed Vertical View Container (Includes Dot Color Badge) -->
+            <div class="collapsed-view-container hidden flex-col items-center py-5 px-2 gap-4 cursor-pointer min-h-[480px]">
                 <button type="button" class="btn btn-circle btn-xs btn-ghost col-toggle-collapse" title="Expandir Coluna">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                     </svg>
                 </button>
+                <span class="w-3 h-3 rounded-full {{ $col['dot_color'] }} shrink-0 shadow-xs" title="{{ $col['title'] }}"></span>
                 <div class="writing-mode-vertical text-xs font-bold uppercase tracking-wider text-base-content/70 select-none">
                     {{ $col['title'] }}
                 </div>
                 <span class="badge badge-sm badge-neutral font-bold col-count-badge">{{ $col['count'] }}</span>
             </div>
 
-            <!-- Column Body / Drop Container -->
-            <div class="kanban-column-body flex flex-col gap-3 p-3 min-h-[480px] transition-colors duration-150" data-stage="{{ $colId }}">
+            <!-- Column Body / Scrollable Drop Container (max-h to fit screen) -->
+            <div class="kanban-column-body flex flex-col gap-3 p-3 max-h-[calc(100vh-270px)] overflow-y-auto custom-scrollbar transition-colors duration-150" data-stage="{{ $colId }}">
                 @if(count($col['items']) === 0)
                     <div class="border-2 border-dashed border-base-300/80 rounded-xl p-8 text-center text-xs text-base-content/40 font-medium empty-placeholder my-auto">
                         Sem cards nesta etapa
@@ -114,7 +99,7 @@
                         $atrasoColor = $cliente->dias_atraso > 90 ? 'text-error' : ($cliente->dias_atraso > 30 ? 'text-warning' : ($cliente->dias_atraso > 0 ? 'text-info' : 'text-success'));
                     @endphp
 
-                    <!-- Kanban Card Item (Clean format without ULO units) -->
+                    <!-- Kanban Card Item -->
                     <div class="kanban-card bg-base-100 p-4 rounded-xl shadow-xs border border-base-200 hover:shadow-md transition cursor-grab active:cursor-grabbing flex flex-col justify-between gap-3 group relative"
                         draggable="true" 
                         data-cnpj="{{ $cliente->cnpj_cpf }}"
@@ -150,8 +135,8 @@
         </div>
     @endforeach
 
-    <!-- Adicionar Etapa Column Card (Matching Second Screenshot) -->
-    <div id="btn-add-column-card" class="kanban-add-column-card bg-base-200/30 hover:bg-base-200/60 border-2 border-dashed border-base-300 hover:border-primary/50 rounded-xl flex flex-col justify-center items-center cursor-pointer transition p-8 text-base-content/40 hover:text-primary w-80 shrink-0 min-h-[550px] group">
+    <!-- Adicionar Etapa Column Card -->
+    <div id="btn-add-column-card" class="kanban-add-column-card bg-base-200/30 hover:bg-base-200/60 border-2 border-dashed border-base-300 hover:border-primary/50 rounded-xl flex flex-col justify-center items-center cursor-pointer transition p-8 text-base-content/40 hover:text-primary w-80 shrink-0 h-[calc(100vh-270px)] group">
         <div class="text-6xl font-light leading-none group-hover:scale-110 transition-transform select-none">
             +
         </div>
@@ -163,5 +148,18 @@
     .writing-mode-vertical {
         writing-mode: vertical-rl;
         transform: rotate(180deg);
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 5px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(156, 163, 175, 0.4);
+        border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgba(156, 163, 175, 0.7);
     }
 </style>
