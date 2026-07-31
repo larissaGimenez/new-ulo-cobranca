@@ -628,6 +628,63 @@
                 });
             }
 
+            // Infinite Scroll / Lazy Loading for Kanban Columns (Native Capture Listener)
+            document.addEventListener('scroll', function(e) {
+                let target = e.target;
+                if (!target || !target.classList || !target.classList.contains('kanban-column-body')) {
+                    return;
+                }
+
+                let $colBody = $(target);
+                if ($colBody.data('loading') || $colBody.attr('data-has-more') === 'false') return;
+
+                let scrollTop = target.scrollTop;
+                let clientHeight = target.clientHeight;
+                let scrollHeight = target.scrollHeight;
+
+                if (scrollTop + clientHeight >= scrollHeight - 120) {
+                    $colBody.data('loading', true);
+                    let stage = $colBody.attr('data-stage');
+                    let currentPage = parseInt($colBody.attr('data-page')) || 1;
+                    let nextPage = currentPage + 1;
+
+                    let $spinner = $colBody.find('.column-loading-spinner');
+                    $spinner.removeClass('hidden');
+
+                    $.ajax({
+                        url: "{{ route('clientes.kanban.column.load-more') }}",
+                        type: "POST",
+                        data: {
+                            _token: "{{ csrf_token() }}",
+                            stage: stage,
+                            page: nextPage
+                        },
+                        success: function(res) {
+                            $spinner.addClass('hidden');
+                            $colBody.data('loading', false);
+
+                            if (res.success && res.html) {
+                                let $wrapper = $colBody.find('.cards-list-wrapper');
+                                if ($wrapper.length) {
+                                    $wrapper.append(res.html);
+                                } else {
+                                    $colBody.append(res.html);
+                                }
+                                $colBody.attr('data-page', nextPage);
+                                $colBody.attr('data-has-more', res.has_more ? 'true' : 'false');
+                            } else {
+                                $colBody.attr('data-has-more', 'false');
+                            }
+                        },
+                        error: function(err) {
+                            console.error('Error loading more cards for column:', err);
+                            $spinner.addClass('hidden');
+                            $colBody.data('loading', false);
+                        }
+                    });
+                }
+            }, true);
+
             // Initialize drag & drop and restore state on page load
             initKanbanDragAndDrop();
             restoreCollapsedColumns();

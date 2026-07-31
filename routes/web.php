@@ -18,7 +18,7 @@ Route::middleware([
     'verified',
 ])->group(function () {
     Route::get('/dashboard', function () {
-        return view('dashboard');
+        return view('pages.dashboard.index');
     })->name('dashboard');
 
     Route::get('/dev-settings', [DevSettingsController::class, 'index'])->name('dev-settings');
@@ -55,4 +55,5 @@ Route::middleware([
     Route::post('/clientes/kanban/column/store', [ClientesController::class, 'storeColumn'])->name('clientes.kanban.column.store');
     Route::post('/clientes/kanban/column/reorder', [ClientesController::class, 'reorderColumns'])->name('clientes.kanban.column.reorder');
     Route::post('/clientes/kanban/column/delete', [ClientesController::class, 'deleteColumn'])->name('clientes.kanban.column.delete');
+    Route::post('/clientes/kanban/column/load-more', [ClientesController::class, 'loadMoreColumn'])->name('clientes.kanban.column.load-more');
 });

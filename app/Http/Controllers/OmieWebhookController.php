@@ -179,6 +179,14 @@ class OmieWebhookController extends Controller
             $actionWord = str_contains($topicLower, 'incluido') ? 'incluído' : (str_contains($topicLower, 'alterado') ? 'alterado' : 'boleto gerado');
             $type = str_contains($topicLower, 'incluido') ? 'receivable_created' : 'receivable_updated';
 
+            // Recalcula o saldo físico do cliente no banco
+            $client = OmieCliente::where('ulo_source', $uloSource)
+                ->where('codigo_cliente_omie', $event['codigo_cliente_fornecedor'])
+                ->first();
+            if ($client) {
+                OmieCliente::recalculateFinancialsForClient($client->cnpj_cpf);
+            }
+
             NotificationService::send(
                 $type,
                 "Título " . ucfirst($actionWord),
@@ -196,6 +204,12 @@ class OmieWebhookController extends Controller
                         ->first();
                     if ($dbTitle) {
                         $dbTitle->update(['status_titulo' => 'RECEBIDO']);
+                        $client = OmieCliente::where('ulo_source', $uloSource)
+                            ->where('codigo_cliente_omie', $dbTitle->codigo_cliente_fornecedor)
+                            ->first();
+                        if ($client) {
+                            OmieCliente::recalculateFinancialsForClient($client->cnpj_cpf);
+                        }
                     }
 
                     NotificationService::send(
@@ -218,6 +232,12 @@ class OmieWebhookController extends Controller
                     if ($dbTitle) {
                         $status = $this->calculateStatus(null, $dbTitle->data_previsao?->format('Y-m-d'));
                         $dbTitle->update(['status_titulo' => $status]);
+                        $client = OmieCliente::where('ulo_source', $uloSource)
+                            ->where('codigo_cliente_omie', $dbTitle->codigo_cliente_fornecedor)
+                            ->first();
+                        if ($client) {
+                            OmieCliente::recalculateFinancialsForClient($client->cnpj_cpf);
+                        }
                     } else {
                         $status = 'A VENCER';
                     }
@@ -237,6 +257,12 @@ class OmieWebhookController extends Controller
                 ->first();
             if ($dbTitle) {
                 $dbTitle->update(['status_titulo' => 'CANCELADO']);
+                $client = OmieCliente::where('ulo_source', $uloSource)
+                    ->where('codigo_cliente_omie', $dbTitle->codigo_cliente_fornecedor)
+                    ->first();
+                if ($client) {
+                    OmieCliente::recalculateFinancialsForClient($client->cnpj_cpf);
+                }
             }
 
             NotificationService::send(

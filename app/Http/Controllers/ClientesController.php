@@ -92,102 +92,37 @@ class ClientesController extends Controller
             $selectedStages = $allStageSlugs;
         }
 
-        // 3. Build Raw Query with CTEs and Kanban Stage Left Join
-        $queryStr = "
-            WITH all_client_ulos AS (
-                SELECT cnpj_cpf, string_agg(DISTINCT ulo_source, ',') as ulos_list
-                FROM omie_clientes
-                GROUP BY cnpj_cpf
-            ),
-            redecard_accounts AS (
-                SELECT n_cod_c_c, ulo_source
-                FROM omie_contas_correntes
-                WHERE codigo_banco = '971' OR descricao ILIKE '%Redecard%'
-            )
-            SELECT 
-                c.cnpj_cpf,
-                MAX(c.razao_social) as name,
-                MAX(c.email) as email,
-                MAX(c.telefone1_numero) as phone,
-                MAX(c.telefone1_ddd) as phone_ddd,
-                acu.ulos_list as all_ulos,
-                
-                -- Kanban Stage
-                COALESCE(
-                    MAX(ks.stage), 
-                    CASE WHEN SUM(CASE WHEN cp.status_titulo = 'ATRASADO' THEN cp.valor_documento ELSE 0 END) > 0 
-                        THEN 'inadimplencia' 
-                        ELSE 'pagamento_concluido' 
-                    END
-                ) as stage,
-
-                -- Dívida normal vencida (não Redecard)
-                COALESCE(SUM(CASE WHEN cp.status_titulo = 'ATRASADO' AND rc.n_cod_c_c IS NULL THEN cp.valor_documento ELSE 0 END), 0) as divida_comum,
-                
-                -- Dívida Redecard vencida
-                COALESCE(SUM(CASE WHEN cp.status_titulo = 'ATRASADO' AND rc.n_cod_c_c IS NOT NULL THEN cp.valor_documento ELSE 0 END), 0) as divida_redecard,
-                
-                -- Quantidade de títulos
-                COALESCE(COUNT(CASE WHEN cp.status_titulo = 'ATRASADO' AND rc.n_cod_c_c IS NULL THEN cp.id END), 0) as qtd_titulos_comum,
-                COALESCE(COUNT(CASE WHEN cp.status_titulo = 'ATRASADO' AND rc.n_cod_c_c IS NOT NULL THEN cp.id END), 0) as qtd_titulos_redecard,
-
-                -- Dias de atraso (com base no vencido mais antigo)
-                COALESCE(CURRENT_DATE - MIN(CASE WHEN cp.status_titulo = 'ATRASADO' THEN cp.data_previsao END), 0) as dias_atraso
-            FROM omie_clientes c
-            JOIN all_client_ulos acu ON c.cnpj_cpf = acu.cnpj_cpf
-            LEFT JOIN client_kanban_stages ks ON c.cnpj_cpf = ks.cnpj_cpf
-            LEFT JOIN omie_contas_receber cp 
-                ON c.codigo_cliente_omie = cp.codigo_cliente_fornecedor 
-                AND c.ulo_source = cp.ulo_source
-            LEFT JOIN redecard_accounts rc 
-                ON cp.id_conta_corrente = rc.n_cod_c_c 
-                AND cp.ulo_source = rc.ulo_source
-            WHERE 1=1
-        ";
-
+        // 3. Build Ultra-Fast Denormalized Query directly from omie_clientes
         $bindings = [];
+        $cleanUlos = !empty($selectedUlos) ? array_map(fn($u) => "'" . addslashes($u) . "'", $selectedUlos) : ["'1=0'"];
+        $uloFilterSql = "c.ulo_source IN (" . implode(',', $cleanUlos) . ")";
 
-        // Apply ULO Filter
-        if (!empty($selectedUlos)) {
-            $placeholders = [];
-            foreach ($selectedUlos as $index => $uloName) {
-                $bindKey = "ulo_" . $index;
-                $placeholders[] = ":" . $bindKey;
-                $bindings[$bindKey] = $uloName;
-            }
-            $queryStr .= " AND c.ulo_source IN (" . implode(',', $placeholders) . ")";
-        } else {
-            $queryStr .= " AND 1=0";
-        }
+        $whereClauses = [$uloFilterSql];
 
-        // Apply Search Filter (Name, Fantasia, CNPJ, Email, Phone)
-        if (!empty($search)) {
-            $queryStr .= " AND (c.razao_social ILIKE :search OR c.nome_fantasia ILIKE :search OR c.cnpj_cpf ILIKE :search OR c.email ILIKE :search OR c.telefone1_numero ILIKE :search)";
-            $bindings['search'] = '%' . $search . '%';
-        }
-
-        $queryStr .= " GROUP BY c.cnpj_cpf, acu.ulos_list";
-
-        // Apply Tab Filter, Faixa Filter & Stage Filter (HAVING clause)
-        $havingClauses = [];
+        // Filter by Tab (status_cobranca)
         if ($tab === 'inadimplentes') {
-            $havingClauses[] = "COALESCE(SUM(CASE WHEN cp.status_titulo = 'ATRASADO' AND rc.n_cod_c_c IS NULL THEN cp.valor_documento ELSE 0 END), 0) > 0";
+            $whereClauses[] = "c.status_cobranca = 'inadimplente'";
         } elseif ($tab === 'inadimplentes_redecard') {
-            $havingClauses[] = "COALESCE(SUM(CASE WHEN cp.status_titulo = 'ATRASADO' AND rc.n_cod_c_c IS NULL THEN cp.valor_documento ELSE 0 END), 0) = 0";
-            $havingClauses[] = "COALESCE(SUM(CASE WHEN cp.status_titulo = 'ATRASADO' AND rc.n_cod_c_c IS NOT NULL THEN cp.valor_documento ELSE 0 END), 0) > 0";
+            $whereClauses[] = "c.status_cobranca = 'inadimplente_redecard'";
         } else { // adimplentes
-            $havingClauses[] = "COALESCE(SUM(CASE WHEN cp.status_titulo = 'ATRASADO' THEN cp.valor_documento ELSE 0 END), 0) = 0";
+            $whereClauses[] = "c.status_cobranca = 'adimplente'";
         }
 
         // Apply Aging Faixa Filter
         if ($tab !== 'adimplentes' && $faixa !== 'all') {
             if ($faixa === '30') {
-                $havingClauses[] = "COALESCE(CURRENT_DATE - MIN(CASE WHEN cp.status_titulo = 'ATRASADO' THEN cp.data_previsao END), 0) <= 30";
+                $whereClauses[] = "c.dias_atraso_maximo <= 30";
             } elseif ($faixa === '90') {
-                $havingClauses[] = "COALESCE(CURRENT_DATE - MIN(CASE WHEN cp.status_titulo = 'ATRASADO' THEN cp.data_previsao END), 0) >= 31 AND COALESCE(CURRENT_DATE - MIN(CASE WHEN cp.status_titulo = 'ATRASADO' THEN cp.data_previsao END), 0) <= 90";
+                $whereClauses[] = "c.dias_atraso_maximo >= 31 AND c.dias_atraso_maximo <= 90";
             } elseif ($faixa === '120') {
-                $havingClauses[] = "COALESCE(CURRENT_DATE - MIN(CASE WHEN cp.status_titulo = 'ATRASADO' THEN cp.data_previsao END), 0) >= 91";
+                $whereClauses[] = "c.dias_atraso_maximo >= 91";
             }
+        }
+
+        // Apply Search Filter
+        if (!empty($search)) {
+            $whereClauses[] = "(c.razao_social ILIKE :search OR c.nome_fantasia ILIKE :search OR c.cnpj_cpf ILIKE :search OR c.email ILIKE :search OR c.telefone1_numero ILIKE :search)";
+            $bindings['search'] = '%' . $search . '%';
         }
 
         // Apply Stage Filter
@@ -198,12 +133,33 @@ class ClientesController extends Controller
                 $stagePlaceholders[] = ":" . $key;
                 $bindings[$key] = $stgSlug;
             }
-            $havingClauses[] = "COALESCE(MAX(ks.stage), CASE WHEN SUM(CASE WHEN cp.status_titulo = 'ATRASADO' THEN cp.valor_documento ELSE 0 END) > 0 THEN 'inadimplencia' ELSE 'pagamento_concluido' END) IN (" . implode(',', $stagePlaceholders) . ")";
+            $defaultStageExpr = ($tab !== 'adimplentes' ? "'inadimplencia'" : "'pagamento_concluido'");
+            $whereClauses[] = "COALESCE(ks.stage, {$defaultStageExpr}) IN (" . implode(',', $stagePlaceholders) . ")";
         }
 
-        if (count($havingClauses) > 0) {
-            $queryStr .= " HAVING " . implode(' AND ', $havingClauses);
-        }
+        $whereSql = implode(" AND ", $whereClauses);
+
+        $defaultStageSql = ($tab !== 'adimplentes' ? "'inadimplencia'" : "'pagamento_concluido'");
+
+        $queryStr = "
+            SELECT 
+                c.cnpj_cpf,
+                MAX(c.razao_social) as name,
+                MAX(c.email) as email,
+                MAX(c.telefone1_numero) as phone,
+                MAX(c.telefone1_ddd) as phone_ddd,
+                string_agg(DISTINCT c.ulo_source, ',') as all_ulos,
+                COALESCE(MAX(ks.stage), {$defaultStageSql}) as stage,
+                MAX(c.divida_comum_total) as divida_comum,
+                MAX(c.divida_redecard_total) as divida_redecard,
+                MAX(c.qtd_titulos_comum) as qtd_titulos_comum,
+                MAX(c.qtd_titulos_redecard) as qtd_titulos_redecard,
+                MAX(c.dias_atraso_maximo) as dias_atraso
+            FROM omie_clientes c
+            LEFT JOIN client_kanban_stages ks ON c.cnpj_cpf = ks.cnpj_cpf
+            WHERE {$whereSql}
+            GROUP BY c.cnpj_cpf
+        ";
 
         // Apply Order By
         $allowedSorts = [
@@ -259,11 +215,18 @@ class ClientesController extends Controller
             $row->stage_title = $kanbanColumns[$stg]['title'];
             $row->stage_dot_color = $kanbanColumns[$stg]['dot_color'];
 
-            $kanbanColumns[$stg]['items'][] = $row;
             $kanbanColumns[$stg]['count']++;
             $amount = ($tab === 'inadimplentes_redecard') ? (float)$row->divida_redecard : (float)$row->divida_comum;
             $kanbanColumns[$stg]['total'] += $amount;
+            $kanbanColumns[$stg]['all_items'][] = $row;
         }
+
+        // Limit initial rendered items per column to 20 for instant DOM loading
+        foreach ($kanbanColumns as $colId => &$colData) {
+            $colData['items'] = array_slice($colData['all_items'] ?? [], 0, 20);
+            unset($colData['all_items']);
+        }
+        unset($colData);
 
         // Paginator for list view
         $perPage = 15;
@@ -422,5 +385,127 @@ class ClientesController extends Controller
         DB::table('kanban_columns')->where('slug', $slug)->delete();
 
         return response()->json(['success' => true]);
+    }
+
+    /**
+     * Lazy Load next page of cards for a specific Kanban column
+     */
+    public function loadMoreColumn(Request $request)
+    {
+        $stageSlug = $request->input('stage');
+        $page = (int)$request->input('page', 2);
+        $perPage = 20;
+
+        $viewMode = session('clientes_view_mode', 'lista');
+        $tab = session('clientes_tab', 'inadimplentes');
+        $sortBy = session('clientes_sort_by', 'name');
+        $sortDir = session('clientes_sort_dir', 'asc');
+        $search = session('clientes_search', '');
+        $selectedUlos = session('clientes_ulos', []);
+        $faixa = session('clientes_faixa', 'all');
+
+        $cleanUlos = !empty($selectedUlos) ? array_map(fn($u) => "'" . addslashes($u) . "'", $selectedUlos) : ["'1=0'"];
+        $uloFilterSql = "c.ulo_source IN (" . implode(',', $cleanUlos) . ")";
+
+        $whereClauses = [$uloFilterSql];
+        $bindings = [];
+
+        if ($tab === 'inadimplentes') {
+            $whereClauses[] = "c.status_cobranca = 'inadimplente'";
+        } elseif ($tab === 'inadimplentes_redecard') {
+            $whereClauses[] = "c.status_cobranca = 'inadimplente_redecard'";
+        } else {
+            $whereClauses[] = "c.status_cobranca = 'adimplente'";
+        }
+
+        if ($tab !== 'adimplentes' && $faixa !== 'all') {
+            if ($faixa === '30') {
+                $whereClauses[] = "c.dias_atraso_maximo <= 30";
+            } elseif ($faixa === '90') {
+                $whereClauses[] = "c.dias_atraso_maximo >= 31 AND c.dias_atraso_maximo <= 90";
+            } elseif ($faixa === '120') {
+                $whereClauses[] = "c.dias_atraso_maximo >= 91";
+            }
+        }
+
+        if (!empty($search)) {
+            $whereClauses[] = "(c.razao_social ILIKE :search OR c.nome_fantasia ILIKE :search OR c.cnpj_cpf ILIKE :search OR c.email ILIKE :search OR c.telefone1_numero ILIKE :search)";
+            $bindings['search'] = '%' . $search . '%';
+        }
+
+        $defaultStageSql = ($tab !== 'adimplentes' ? "'inadimplencia'" : "'pagamento_concluido'");
+        $whereClauses[] = "COALESCE(ks.stage, {$defaultStageSql}) = :target_stage";
+        $bindings['target_stage'] = $stageSlug;
+
+        $whereSql = implode(" AND ", $whereClauses);
+
+        $allowedSorts = [
+            'name' => 'name',
+            'email' => 'email',
+            'stage' => 'stage',
+            'divida' => ($tab === 'inadimplentes_redecard' ? 'divida_redecard' : 'divida_comum'),
+            'atraso' => 'dias_atraso',
+            'faixa' => 'dias_atraso',
+            'phone' => 'phone'
+        ];
+        $sortColumn = $allowedSorts[$sortBy] ?? 'name';
+        $orderSql = "ORDER BY {$sortColumn} " . (strtolower($sortDir) === 'desc' ? 'DESC' : 'ASC');
+
+        $offset = ($page - 1) * $perPage;
+
+        $queryStr = "
+            SELECT 
+                c.cnpj_cpf,
+                MAX(c.razao_social) as name,
+                MAX(c.email) as email,
+                MAX(c.telefone1_numero) as phone,
+                MAX(c.telefone1_ddd) as phone_ddd,
+                string_agg(DISTINCT c.ulo_source, ',') as all_ulos,
+                COALESCE(MAX(ks.stage), {$defaultStageSql}) as stage,
+                MAX(c.divida_comum_total) as divida_comum,
+                MAX(c.divida_redecard_total) as divida_redecard,
+                MAX(c.qtd_titulos_comum) as qtd_titulos_comum,
+                MAX(c.qtd_titulos_redecard) as qtd_titulos_redecard,
+                MAX(c.dias_atraso_maximo) as dias_atraso
+            FROM omie_clientes c
+            LEFT JOIN client_kanban_stages ks ON c.cnpj_cpf = ks.cnpj_cpf
+            WHERE {$whereSql}
+            GROUP BY c.cnpj_cpf
+            {$orderSql}
+            LIMIT {$perPage} OFFSET {$offset}
+        ";
+
+        $items = DB::select($queryStr, $bindings);
+
+        // Fetch all kanban columns definition for card move menu
+        $dbColumns = DB::table('kanban_columns')->orderBy('position', 'asc')->get();
+        $kanbanColumns = [];
+        foreach ($dbColumns as $col) {
+            $kanbanColumns[$col->slug] = [
+                'id' => $col->slug,
+                'title' => mb_strtoupper($col->title),
+                'dot_color' => $col->dot_color ?? 'bg-primary',
+            ];
+        }
+
+        $html = '';
+        foreach ($items as $cliente) {
+            $html .= view('pages.clientes.partials.kanban-card', [
+                'cliente' => $cliente,
+                'colId' => $stageSlug,
+                'kanbanColumns' => $kanbanColumns,
+                'tab' => $tab
+            ])->render();
+        }
+
+        $hasMore = count($items) === $perPage;
+
+        return response()->json([
+            'success' => true,
+            'html' => $html,
+            'count' => count($items),
+            'has_more' => $hasMore,
+            'next_page' => $page + 1
+        ]);
     }
 }

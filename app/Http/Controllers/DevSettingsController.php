@@ -38,7 +38,7 @@ class DevSettingsController extends Controller
             }
         }
 
-        return view('dev-settings', compact('ulos'));
+        return view('pages.dev-settings.index', compact('ulos'));
     }
 
     public function syncPage(Request $request)
@@ -179,6 +179,9 @@ class DevSettingsController extends Controller
             }
 
             $finished = ($page >= $totalPages);
+            if ($finished) {
+                OmieCliente::recalculateAllClientsFinancials();
+            }
 
             return response()->json([
                 'success' => true,
@@ -223,7 +226,7 @@ class DevSettingsController extends Controller
             }
         }
 
-        return view('dev-settings-clientes', compact('ulos'));
+        return view('pages.dev-settings.clientes', compact('ulos'));
     }
 
     public function syncClientesPage(Request $request)
@@ -431,7 +434,7 @@ class DevSettingsController extends Controller
             }
         }
 
-        return view('dev-settings-vinculos', compact('totalTitles', 'linkedTitles', 'orphanTitlesCount', 'statsByUlo', 'orphans'));
+        return view('pages.dev-settings.vinculos', compact('totalTitles', 'linkedTitles', 'orphanTitlesCount', 'statsByUlo', 'orphans'));
     }
 
     public function contasIndex()
@@ -460,7 +463,7 @@ class DevSettingsController extends Controller
             }
         }
 
-        return view('dev-settings-contas', compact('ulos'));
+        return view('pages.dev-settings.contas', compact('ulos'));
     }
 
     public function syncContasPage(Request $request)
@@ -573,13 +576,13 @@ class DevSettingsController extends Controller
         $reverbOnline = $manager->isReverbOnline();
         $queueOnline = $manager->isQueueWorkerOnline();
         $scheduler = $manager->getSchedulerStatus();
-        return view('dev-settings-acompanhamento', compact('reverbOnline', 'queueOnline', 'scheduler'));
+        return view('pages.dev-settings.acompanhamento', compact('reverbOnline', 'queueOnline', 'scheduler'));
     }
 
     public function logsIndex()
     {
         $logs = \App\Models\OmieChangeLog::latest()->paginate(25);
-        return view('dev-settings-logs-webhooks', compact('logs'));
+        return view('pages.dev-settings.logs-webhooks', compact('logs'));
     }
 
     public function importOrphanClient(Request $request)

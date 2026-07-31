@@ -245,7 +245,6 @@
             if (!isSyncing) return;
 
             if (currentUloIndex >= activeUlos.length) {
-                // Sincronização completa de todas as ULOs!
                 isSyncing = false;
                 localStorage.removeItem(STORAGE_KEY);
                 document.getElementById('btn-start-sync').disabled = false;
@@ -259,7 +258,6 @@
                 
                 appendLog(`[Concluído] Sincronização dos clientes de todas as ULOs finalizada com sucesso! Total de ${totalImported} registros importados/atualizados.`);
                 
-                // Recarrega estatísticas em 3 segundos
                 setTimeout(() => {
                     window.location.reload();
                 }, 3000);
@@ -297,14 +295,11 @@
                     throw new Error(result.message || 'Erro de sincronização.');
                 }
 
-                // Sucesso na página - Reseta tentativas de erro
                 errorAttempts = 0;
                 totalImported += result.imported_count;
                 
-                // Salva progresso
                 saveProgress();
                 
-                // Calcula percentual para a ULO atual
                 const totalPages = result.total_pages || 1;
                 const percent = Math.round((currentPage / totalPages) * 100);
                 
@@ -316,16 +311,13 @@
                 if (result.finished) {
                     appendLog(`[Concluído] Clientes de ${currentUlo.name} finalizados com sucesso.`);
                     
-                    // Incrementa ULO index, reseta página
                     currentUloIndex++;
                     currentPage = 1;
                     saveProgress();
                 } else {
-                    // Próxima página da ULO atual
                     currentPage++;
                 }
 
-                // Chama recursivamente a próxima etapa
                 syncNext();
 
             } catch (error) {
@@ -333,7 +325,6 @@
                 let delay = autoRetryDelayMs;
                 let isRateLimitOrLock = false;
 
-                // Analisar mensagem de erro da Omie para definir delay dinâmico
                 if (message.includes('Consumo redundante') || message.includes('REDUNDANT')) {
                     const match = message.match(/Aguarde\s+(\d+)\s+segundos/i);
                     const seconds = match ? parseInt(match[1], 10) : 60;
@@ -365,7 +356,6 @@
                         syncNext();
                     }, delay);
                 } else {
-                    // Limite de auto-retries atingido. Pausa e mostra controles manuais
                     isSyncing = false;
                     document.getElementById('btn-start-sync').disabled = false;
                     document.getElementById('btn-start-sync').classList.remove('loading');
@@ -378,7 +368,6 @@
             }
         }
 
-        // Funções para controle manual de recuperação de erros
         function retryCurrentPage() {
             appendLog(`[Manual] Reiniciando processamento da ULO ${activeUlos[currentUloIndex].name} - Página ${currentPage}...`);
             isSyncing = true;

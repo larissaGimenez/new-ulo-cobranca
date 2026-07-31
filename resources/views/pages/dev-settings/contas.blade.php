@@ -23,9 +23,9 @@
                     </div>
                 </div>
 
-                <h3 class="text-lg font-bold mb-4 text-base-content">Integração Omie - Contas a Receber</h3>
+                <h3 class="text-lg font-bold mb-4 text-base-content">Integração Omie - Contas Correntes</h3>
                 <p class="text-sm text-base-content/70 mb-6">
-                    Use esta ferramenta para realizar a sincronização inicial de todas as contas a receber registradas nas 5 ULOs configuradas no arquivo de ambiente (.env) de forma fracionada (via AJAX) para evitar timeouts.
+                    Use esta ferramenta para realizar a sincronização inicial de todas as contas correntes registradas nas 5 ULOs configuradas no arquivo de ambiente (.env) de forma fracionada (via AJAX) para identificar as contas Redecard.
                 </p>
 
                 <!-- Dynamic Progress Section (Hidden by default) -->
@@ -74,7 +74,7 @@
                                         <tr>
                                             <th>Nome da ULO</th>
                                             <th>App Key</th>
-                                            <th class="text-right">Registros Importados</th>
+                                            <th class="text-right">Contas Importadas</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -136,12 +136,12 @@
         let currentPage = 1;
         let totalImported = 0;
         let isSyncing = false;
-        
+
         let errorAttempts = 0;
         const maxAutoRetries = 3;
         const autoRetryDelayMs = 3000;
 
-        const STORAGE_KEY = 'receivables_sync_progress';
+        const STORAGE_KEY = 'contas_sync_progress';
 
         // Check if there is saved progress on load
         window.addEventListener('DOMContentLoaded', () => {
@@ -151,7 +151,7 @@
                     const progress = JSON.parse(saved);
                     if (progress && progress.uloIndex < activeUlos.length) {
                         const uloName = activeUlos[progress.uloIndex].name;
-                        document.getElementById('resume-banner-text').textContent = `Detectamos um progresso salvo da ULO: ${uloName} (Página ${progress.page}, total importado: ${progress.totalImported}).`;
+                        document.getElementById('resume-banner-text').textContent = `Detectamos um progresso salvo das contas da ULO: ${uloName} (Página ${progress.page}, total importado: ${progress.totalImported}).`;
                         document.getElementById('resume-banner').classList.remove('hidden');
                     }
                 } catch (e) {
@@ -237,7 +237,7 @@
             document.getElementById('progress-container').classList.remove('hidden');
             document.getElementById('error-controls').classList.add('hidden');
             
-            appendLog('Iniciando sincronização das ULOs configuradas...');
+            appendLog('Iniciando sincronização das contas correntes das ULOs configuradas...');
             syncNext();
         }
 
@@ -245,7 +245,6 @@
             if (!isSyncing) return;
 
             if (currentUloIndex >= activeUlos.length) {
-                // Sincronização completa de todas as ULOs!
                 isSyncing = false;
                 localStorage.removeItem(STORAGE_KEY);
                 document.getElementById('btn-start-sync').disabled = false;
@@ -257,9 +256,8 @@
                 document.getElementById('progress-text-right').textContent = '100%';
                 document.getElementById('error-controls').classList.add('hidden');
                 
-                appendLog(`[Concluído] Sincronização de todas as ULOs finalizada com sucesso! Total de ${totalImported} registros importados/atualizados.`);
+                appendLog(`[Concluído] Sincronização das contas correntes de todas as ULOs finalizada com sucesso! Total de ${totalImported} registros importados/atualizados.`);
                 
-                // Recarrega estatísticas em 3 segundos
                 setTimeout(() => {
                     window.location.reload();
                 }, 3000);
@@ -268,12 +266,12 @@
 
             const currentUlo = activeUlos[currentUloIndex];
             
-            document.getElementById('progress-title').textContent = `Sincronizando ${currentUlo.name}...`;
+            document.getElementById('progress-title').textContent = `Sincronizando contas de ${currentUlo.name}...`;
             document.getElementById('progress-text-left').textContent = `Processando página ${currentPage}...`;
             document.getElementById('error-controls').classList.add('hidden');
 
             try {
-                const response = await fetch("{{ route('dev-settings.sync-page') }}", {
+                const response = await fetch("{{ route('dev-settings.contas.sync-page') }}", {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -297,35 +295,29 @@
                     throw new Error(result.message || 'Erro de sincronização.');
                 }
 
-                // Sucesso na página - Reseta tentativas de erro
                 errorAttempts = 0;
                 totalImported += result.imported_count;
                 
-                // Salva progresso no localStorage
                 saveProgress();
                 
-                // Calcula percentual para a ULO atual
                 const totalPages = result.total_pages || 1;
                 const percent = Math.round((currentPage / totalPages) * 100);
                 
                 document.getElementById('sync-progress').value = percent;
                 document.getElementById('progress-text-right').textContent = `${percent}%`;
 
-                appendLog(`[OK] ${currentUlo.name} | Página ${currentPage}/${totalPages} | +${result.imported_count} registros importados.`);
+                appendLog(`[OK] ${currentUlo.name} | Página ${currentPage}/${totalPages} | +${result.imported_count} contas importadas.`);
 
                 if (result.finished) {
-                    appendLog(`[Concluído] ${currentUlo.name} finalizada com sucesso.`);
+                    appendLog(`[Concluído] Contas de ${currentUlo.name} finalizadas com sucesso.`);
                     
-                    // Incrementa ULO index, reseta página
                     currentUloIndex++;
                     currentPage = 1;
                     saveProgress();
                 } else {
-                    // Próxima página da ULO atual
                     currentPage++;
                 }
 
-                // Chama recursivamente a próxima etapa
                 syncNext();
 
             } catch (error) {
@@ -333,7 +325,6 @@
                 let delay = autoRetryDelayMs;
                 let isRateLimitOrLock = false;
 
-                // Analisar mensagem de erro da Omie para definir delay dinâmico
                 if (message.includes('Consumo redundante') || message.includes('REDUNDANT')) {
                     const match = message.match(/Aguarde\s+(\d+)\s+segundos/i);
                     const seconds = match ? parseInt(match[1], 10) : 60;
@@ -365,7 +356,6 @@
                         syncNext();
                     }, delay);
                 } else {
-                    // Limite de auto-retries atingido. Pausa e mostra controles manuais
                     isSyncing = false;
                     document.getElementById('btn-start-sync').disabled = false;
                     document.getElementById('btn-start-sync').classList.remove('loading');
@@ -378,7 +368,6 @@
             }
         }
 
-        // Funções para controle manual de recuperação de erros
         function retryCurrentPage() {
             appendLog(`[Manual] Reiniciando processamento da ULO ${activeUlos[currentUloIndex].name} - Página ${currentPage}...`);
             isSyncing = true;
