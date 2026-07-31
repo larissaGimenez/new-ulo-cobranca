@@ -1,6 +1,7 @@
 <x-app-layout>
-    <!-- Include jQuery -->
+    <!-- Include jQuery & SortableJS -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 
     <!-- daisyUI Drawer Component -->
     <div class="drawer drawer-end flex-1 flex flex-col min-h-0 overflow-hidden">
@@ -562,7 +563,7 @@
                 if (!$targetColumn.length) return;
 
                 $targetColumn.find('.empty-placeholder').remove();
-                $targetColumn.append($card);
+                $targetColumn.prepend($card);
 
                 if ($sourceColumn.find('.kanban-card').length === 0) {
                     $sourceColumn.append('<div class="border-2 border-dashed border-base-300/80 rounded-xl p-6 text-center text-xs text-base-content/40 font-medium empty-placeholder my-auto">Sem cards nesta etapa</div>');
@@ -584,134 +585,96 @@
                 });
             });
 
-            // --- HTML5 Drag & Drop for Cards and Columns ---
+            // --- Ultra-Fast 60FPS SortableJS Drag & Drop with Optimistic UI ---
+            let cardSortables = [];
+            let boardSortable = null;
+
             function initKanbanDragAndDrop() {
-                let draggedCard = null;
-                let draggedColumn = null;
+                // Destroy previous instances if re-initializing
+                cardSortables.forEach(s => s && s.destroy());
+                cardSortables = [];
+                if (boardSortable) {
+                    boardSortable.destroy();
+                    boardSortable = null;
+                }
 
-                // Card Drag
-                $(document).off('dragstart', '.kanban-card');
-                $(document).on('dragstart', '.kanban-card', function (e) {
-                    e.stopPropagation();
-                    draggedCard = this;
-                    draggedColumn = null;
-                    $(this).addClass('opacity-50 scale-95');
-                    e.originalEvent.dataTransfer.setData('text/plain', $(this).data('cnpj'));
-                    e.originalEvent.dataTransfer.effectAllowed = 'move';
-                });
+                if (typeof Sortable === 'undefined') return;
 
-                $(document).off('dragend', '.kanban-card');
-                $(document).on('dragend', '.kanban-card', function (e) {
-                    e.stopPropagation();
-                    $(this).removeClass('opacity-50 scale-95');
-                    draggedCard = null;
-                });
+                // 1. Column Drag Reordering with SortableJS
+                const boardContainer = document.getElementById('kanban-board-container');
+                if (boardContainer) {
+                    boardSortable = new Sortable(boardContainer, {
+                        animation: 150,
+                        handle: '.kanban-column-header',
+                        draggable: '.kanban-column-wrapper',
+                        ghostClass: 'sortable-column-ghost',
+                        onEnd: function () {
+                            let order = [];
+                            $('#kanban-board-container').children('.kanban-column-wrapper').each(function () {
+                                let colId = $(this).data('col-id');
+                                if (colId) order.push(colId);
+                            });
 
-                // Column Drag Reordering
-                $(document).off('dragstart', '.kanban-column-wrapper');
-                $(document).on('dragstart', '.kanban-column-wrapper', function (e) {
-                    if (draggedCard) return;
-                    draggedColumn = this;
-                    $(this).addClass('opacity-40');
-                    e.originalEvent.dataTransfer.setData('text/plain', $(this).data('col-id'));
-                    e.originalEvent.dataTransfer.effectAllowed = 'move';
-                });
-
-                $(document).off('dragend', '.kanban-column-wrapper');
-                $(document).on('dragend', '.kanban-column-wrapper', function () {
-                    $(this).removeClass('opacity-40');
-                    draggedColumn = null;
-                });
-
-                // Drop target for Column Body (Card Move)
-                $(document).off('dragover dragenter', '.kanban-column-body');
-                $(document).on('dragover dragenter', '.kanban-column-body', function (e) {
-                    if (draggedColumn) return;
-                    e.preventDefault();
-                    e.originalEvent.dataTransfer.dropEffect = 'move';
-                    $(this).addClass('bg-primary/10 border-primary border-dashed');
-                });
-
-                $(document).off('dragleave drop', '.kanban-column-body');
-                $(document).on('dragleave', '.kanban-column-body', function () {
-                    $(this).removeClass('bg-primary/10 border-primary border-dashed');
-                });
-
-                $(document).on('drop', '.kanban-column-body', function (e) {
-                    if (draggedColumn) return;
-                    e.preventDefault();
-                    $(this).removeClass('bg-primary/10 border-primary border-dashed');
-
-                    if (!draggedCard) return;
-
-                    let $targetColumn = $(this);
-                    let targetStage = $targetColumn.data('stage');
-                    let cnpjCpf = $(draggedCard).data('cnpj');
-
-                    let $sourceColumn = $(draggedCard).closest('.kanban-column-body');
-                    let sourceStage = $sourceColumn.data('stage');
-
-                    if (sourceStage === targetStage) return;
-
-                    $targetColumn.find('.empty-placeholder').remove();
-                    $targetColumn.append(draggedCard);
-
-                    if ($sourceColumn.find('.kanban-card').length === 0) {
-                        $sourceColumn.append('<div class="border-2 border-dashed border-base-300/80 rounded-xl p-8 text-center text-xs text-base-content/40 font-medium empty-placeholder my-auto">Sem cards nesta etapa</div>');
-                    }
-
-                    updateColumnSummaries();
-
-                    $.ajax({
-                        url: "{{ route('clientes.update-stage') }}",
-                        type: "POST",
-                        data: {
-                            _token: "{{ csrf_token() }}",
-                            cnpj_cpf: cnpjCpf,
-                            stage: targetStage
-                        },
-                        error: function (err) {
-                            console.error('Erro ao atualizar etapa no Kanban:', err);
+                            // Optimistic UI: Sync with backend in background
+                            $.ajax({
+                                url: "{{ route('clientes.kanban.column.reorder') }}",
+                                type: "POST",
+                                data: {
+                                    _token: "{{ csrf_token() }}",
+                                    order: order
+                                }
+                            });
                         }
                     });
-                });
+                }
 
-                // Drop target for Column Wrapper (Reorder Columns)
-                $(document).off('dragover dragenter', '#kanban-board-container .kanban-column-wrapper');
-                $(document).on('dragover dragenter', '#kanban-board-container .kanban-column-wrapper', function (e) {
-                    if (!draggedColumn || draggedColumn === this) return;
-                    e.preventDefault();
-                });
+                // 2. Card Dragging & Multi-Column Transfer with SortableJS
+                $('.kanban-column-body').each(function () {
+                    let colBodyEl = this;
+                    let s = new Sortable(colBodyEl, {
+                        group: 'kanban-cards',
+                        animation: 150,
+                        draggable: '.kanban-card',
+                        ghostClass: 'sortable-card-ghost',
+                        onEnd: function (evt) {
+                            let itemEl = evt.item;
+                            let targetColEl = evt.to;
+                            let sourceColEl = evt.from;
 
-                $(document).off('drop', '#kanban-board-container .kanban-column-wrapper');
-                $(document).on('drop', '#kanban-board-container .kanban-column-wrapper', function (e) {
-                    if (!draggedColumn || draggedColumn === this) return;
-                    e.preventDefault();
+                            let cnpjCpf = String($(itemEl).data('cnpj'));
+                            let targetStage = $(targetColEl).data('stage');
+                            let sourceStage = $(sourceColEl).data('stage');
 
-                    let $container = $('#kanban-board-container');
-                    let $cols = $container.children('.kanban-column-wrapper');
-                    let draggedIdx = $cols.index(draggedColumn);
-                    let targetIdx = $cols.index(this);
+                            // Cleanup empty placeholders
+                            $(targetColEl).find('.empty-placeholder').remove();
+                            if ($(sourceColEl).find('.kanban-card').length === 0) {
+                                if ($(sourceColEl).find('.empty-placeholder').length === 0) {
+                                    $(sourceColEl).append('<div class="border-2 border-dashed border-base-300/80 rounded-xl p-6 text-center text-xs text-base-content/40 font-medium empty-placeholder my-auto">Sem cards nesta etapa</div>');
+                                } else {
+                                    $(sourceColEl).find('.empty-placeholder').removeClass('hidden');
+                                }
+                            }
 
-                    if (draggedIdx < targetIdx) {
-                        $(this).after(draggedColumn);
-                    } else {
-                        $(this).before(draggedColumn);
-                    }
+                            updateColumnSummaries();
 
-                    let order = [];
-                    $container.children('.kanban-column-wrapper').each(function () {
-                        order.push($(this).data('col-id'));
-                    });
+                            if (sourceStage === targetStage) return;
 
-                    $.ajax({
-                        url: "{{ route('clientes.kanban.column.reorder') }}",
-                        type: "POST",
-                        data: {
-                            _token: "{{ csrf_token() }}",
-                            order: order
+                            // Optimistic UI: Sync with backend in background
+                            $.ajax({
+                                url: "{{ route('clientes.update-stage') }}",
+                                type: "POST",
+                                data: {
+                                    _token: "{{ csrf_token() }}",
+                                    cnpj_cpf: cnpjCpf,
+                                    stage: targetStage
+                                },
+                                error: function (err) {
+                                    console.error('Erro ao atualizar etapa no Kanban:', err);
+                                }
+                            });
                         }
                     });
+                    cardSortables.push(s);
                 });
             }
 
@@ -751,6 +714,18 @@
     </script>
 
     <style>
+        .sortable-column-ghost {
+            opacity: 0.35 !important;
+            border: 2px dashed #6366f1 !important;
+            background-color: rgba(99, 102, 241, 0.1) !important;
+            border-radius: 0.75rem !important;
+        }
+        .sortable-card-ghost {
+            opacity: 0.45 !important;
+            border: 2px dashed #6366f1 !important;
+            background-color: rgba(99, 102, 241, 0.1) !important;
+            border-radius: 0.75rem !important;
+        }
         .custom-scrollbar {
             scrollbar-width: thin;
             scrollbar-color: rgba(156, 163, 175, 0.4) transparent;
