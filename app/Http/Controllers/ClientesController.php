@@ -304,7 +304,7 @@ class ClientesController extends Controller
     }
 
     /**
-     * Update Kanban stage for a client (drag & drop)
+     * Update Kanban stage for a client with Race Condition & Concurrency Locking protection
      */
     public function updateStage(Request $request)
     {
@@ -315,16 +315,36 @@ class ClientesController extends Controller
             return response()->json(['error' => 'Dados inválidos'], 400);
         }
 
-        DB::table('client_kanban_stages')->updateOrInsert(
-            ['cnpj_cpf' => $cnpjCpf],
-            [
-                'stage' => $stage,
-                'updated_at' => now(),
-                'created_at' => now()
-            ]
-        );
+        $now = now();
+        $updatedRecord = null;
 
-        return response()->json(['success' => true]);
+        DB::transaction(function () use ($cnpjCpf, $stage, $now, &$updatedRecord) {
+            // Lock row for update to eliminate race condition write collisions
+            $existing = DB::table('client_kanban_stages')
+                ->where('cnpj_cpf', $cnpjCpf)
+                ->lockForUpdate()
+                ->first();
+
+            DB::table('client_kanban_stages')->updateOrInsert(
+                ['cnpj_cpf' => $cnpjCpf],
+                [
+                    'stage' => $stage,
+                    'updated_at' => $now,
+                    'created_at' => $existing ? $existing->created_at : $now
+                ]
+            );
+
+            $updatedRecord = [
+                'cnpj_cpf' => $cnpjCpf,
+                'stage' => $stage,
+                'updated_at' => $now->toIso8601String()
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $updatedRecord
+        ]);
     }
 
     /**

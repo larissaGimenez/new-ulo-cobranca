@@ -539,7 +539,7 @@
                 });
             });
 
-            // --- Move Card via 3 Dots Menu ---
+            // --- Move Card via 3 Dots Menu (Optimistic UI & Race Condition Protection) ---
             $(document).on('click', '[data-action="move-card"]', function (e) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -562,6 +562,10 @@
 
                 if (!$targetColumn.length) return;
 
+                let sourceStage = $sourceColumn.data('stage');
+                if (sourceStage === targetStage) return;
+
+                // Optimistic UI: Instant visual move in DOM
                 $targetColumn.find('.empty-placeholder').remove();
                 $targetColumn.prepend($card);
 
@@ -571,6 +575,7 @@
 
                 updateColumnSummaries();
 
+                // AJAX Sync with Database Transaction & Lock Protection
                 $.ajax({
                     url: "{{ route('clientes.update-stage') }}",
                     type: "POST",
@@ -581,101 +586,17 @@
                     },
                     error: function (err) {
                         console.error('Erro ao mover card de etapa:', err);
+                        // Rollback visual state if transaction or network fails
+                        $sourceColumn.find('.empty-placeholder').remove();
+                        $sourceColumn.prepend($card);
+                        updateColumnSummaries();
+                        alert('Não foi possível mover o cliente: ' + (err.responseJSON?.error || 'Erro de concorrência. Tente novamente.'));
                     }
                 });
             });
 
-            // --- Ultra-Fast 60FPS SortableJS Drag & Drop with Optimistic UI ---
-            let cardSortables = [];
-            let boardSortable = null;
-
             function initKanbanDragAndDrop() {
-                // Destroy previous instances if re-initializing
-                cardSortables.forEach(s => s && s.destroy());
-                cardSortables = [];
-                if (boardSortable) {
-                    boardSortable.destroy();
-                    boardSortable = null;
-                }
-
-                if (typeof Sortable === 'undefined') return;
-
-                // 1. Column Drag Reordering with SortableJS
-                const boardContainer = document.getElementById('kanban-board-container');
-                if (boardContainer) {
-                    boardSortable = new Sortable(boardContainer, {
-                        animation: 150,
-                        handle: '.kanban-column-header',
-                        draggable: '.kanban-column-wrapper',
-                        ghostClass: 'sortable-column-ghost',
-                        onEnd: function () {
-                            let order = [];
-                            $('#kanban-board-container').children('.kanban-column-wrapper').each(function () {
-                                let colId = $(this).data('col-id');
-                                if (colId) order.push(colId);
-                            });
-
-                            // Optimistic UI: Sync with backend in background
-                            $.ajax({
-                                url: "{{ route('clientes.kanban.column.reorder') }}",
-                                type: "POST",
-                                data: {
-                                    _token: "{{ csrf_token() }}",
-                                    order: order
-                                }
-                            });
-                        }
-                    });
-                }
-
-                // 2. Card Dragging & Multi-Column Transfer with SortableJS
-                $('.kanban-column-body').each(function () {
-                    let colBodyEl = this;
-                    let s = new Sortable(colBodyEl, {
-                        group: 'kanban-cards',
-                        animation: 150,
-                        draggable: '.kanban-card',
-                        ghostClass: 'sortable-card-ghost',
-                        onEnd: function (evt) {
-                            let itemEl = evt.item;
-                            let targetColEl = evt.to;
-                            let sourceColEl = evt.from;
-
-                            let cnpjCpf = String($(itemEl).data('cnpj'));
-                            let targetStage = $(targetColEl).data('stage');
-                            let sourceStage = $(sourceColEl).data('stage');
-
-                            // Cleanup empty placeholders
-                            $(targetColEl).find('.empty-placeholder').remove();
-                            if ($(sourceColEl).find('.kanban-card').length === 0) {
-                                if ($(sourceColEl).find('.empty-placeholder').length === 0) {
-                                    $(sourceColEl).append('<div class="border-2 border-dashed border-base-300/80 rounded-xl p-6 text-center text-xs text-base-content/40 font-medium empty-placeholder my-auto">Sem cards nesta etapa</div>');
-                                } else {
-                                    $(sourceColEl).find('.empty-placeholder').removeClass('hidden');
-                                }
-                            }
-
-                            updateColumnSummaries();
-
-                            if (sourceStage === targetStage) return;
-
-                            // Optimistic UI: Sync with backend in background
-                            $.ajax({
-                                url: "{{ route('clientes.update-stage') }}",
-                                type: "POST",
-                                data: {
-                                    _token: "{{ csrf_token() }}",
-                                    cnpj_cpf: cnpjCpf,
-                                    stage: targetStage
-                                },
-                                error: function (err) {
-                                    console.error('Erro ao atualizar etapa no Kanban:', err);
-                                }
-                            });
-                        }
-                    });
-                    cardSortables.push(s);
-                });
+                // Drag & Drop disabled as requested. All stage transitions managed via 3-dots menu.
             }
 
             // Recalculate summary stats for columns and toggle delete button visibility

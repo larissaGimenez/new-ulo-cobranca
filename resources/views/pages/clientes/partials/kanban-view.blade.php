@@ -2,11 +2,10 @@
 <div id="kanban-board-container" class="flex-1 overflow-x-auto flex gap-3.5 items-stretch pb-1 w-full min-h-0">
     @foreach($kanbanColumns as $colId => $col)
         <div class="kanban-column-wrapper flex flex-col bg-base-200/50 rounded-xl border border-base-300 shadow-xs transition-all duration-200 shrink-0 w-80 h-full max-h-full overflow-hidden" 
-            data-col-id="{{ $colId }}"
-            draggable="true">
+            data-col-id="{{ $colId }}">
             
             <!-- Column Header -->
-            <div class="kanban-column-header bg-base-200/90 p-2.5 flex flex-col gap-1.5 border-b border-base-300 cursor-grab active:cursor-grabbing rounded-t-xl shrink-0 {{ $col['border_color'] }}">
+            <div class="kanban-column-header bg-base-200/90 p-2.5 flex flex-col gap-1.5 border-b border-base-300 rounded-t-xl shrink-0 {{ $col['border_color'] }}">
                 <!-- Header Line 1: Dot, Title, Badge & Action Icons -->
                 <div class="flex justify-between items-center">
                     <div class="flex items-center gap-2 truncate pr-1">
@@ -108,8 +107,7 @@
                     @endphp
 
                     <!-- Kanban Card Item -->
-                    <div class="kanban-card bg-base-100 p-3.5 rounded-xl shadow-xs border border-base-200 hover:shadow-md transition cursor-grab active:cursor-grabbing flex flex-col justify-between gap-2.5 group relative"
-                        draggable="true" 
+                    <div class="kanban-card bg-base-100 p-3.5 rounded-xl shadow-xs border border-base-200 hover:shadow-md transition flex flex-col justify-between gap-2.5 group relative"
                         data-cnpj="{{ $cliente->cnpj_cpf }}"
                         data-name="{{ strtolower($cliente->name) }}"
                         data-amount="{{ $divida }}"
