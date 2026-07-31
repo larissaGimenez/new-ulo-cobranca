@@ -39,21 +39,35 @@ class OmieWebhookController extends Controller
         }
 
         try {
+            $topicLower = strtolower($topic);
+            $topicParts = explode('.', $topic);
+            $action = strtolower($topicParts[1] ?? ($topicParts[0] ?? 'desconhecido'));
+
+            $isReceivable = str_contains($topicLower, 'contareceber');
+            $isClient = str_contains($topicLower, 'cliente');
+
+            $entityType = $isReceivable ? 'receivable' : ($isClient ? 'client' : 'other');
+
+            $entityId = 0;
+            if ($isReceivable) {
+                $entityId = $event['codigo_lancamento_omie'] ?? ($event[0]['conta_a_receber'][0]['codigo_lancamento_omie'] ?? 0);
+            } elseif ($isClient) {
+                $entityId = $event['codigo_cliente_omie'] ?? 0;
+            }
+
             // Registrar log permanente na tabela de auditoria omie_change_logs
             OmieChangeLog::create([
                 'ulo_source' => $uloSource,
-                'entity_type' => str_contains(strtolower($topic), 'contareceber') ? 'receivable' : 'client',
-                'entity_id' => str_contains(strtolower($topic), 'contareceber')
-                    ? ($event['codigo_lancamento_omie'] ?? ($event[0]['conta_a_receber'][0]['codigo_lancamento_omie'] ?? 0))
-                    : ($event['codigo_cliente_omie'] ?? 0),
-                'action' => strtolower(explode('.', $topic)[2] ?? 'desconhecido'),
+                'entity_type' => $entityType,
+                'entity_id' => $entityId,
+                'action' => $action,
                 'details' => $event,
             ]);
 
             // Direciona o processamento conforme a entidade
-            if (str_contains(strtolower($topic), 'contareceber')) {
+            if ($isReceivable) {
                 $this->handleReceivable($uloSource, $topic, $event);
-            } elseif (str_contains(strtolower($topic), 'clientefornecedor')) {
+            } elseif ($isClient) {
                 $this->handleClient($uloSource, $topic, $event);
             }
         } catch (\Exception $e) {
@@ -240,16 +254,26 @@ class OmieWebhookController extends Controller
     {
         $topicLower = strtolower($topic);
 
+        $codigoClienteOmie = $event['codigo_cliente_omie'] ?? null;
+        if (!$codigoClienteOmie) {
+            Log::warning("Omie Webhook de cliente sem codigo_cliente_omie", ['event' => $event]);
+            return;
+        }
+
+        $cnpjCpf = $event['cnpj_cpf'] ?? null;
+        $razaoSocial = $event['razao_social'] ?? ($event['nome_fantasia'] ?? '');
+        $nomeFantasia = $event['nome_fantasia'] ?? ($event['razao_social'] ?? '');
+
         OmieCliente::updateOrCreate(
             [
                 'ulo_source' => $uloSource,
-                'codigo_cliente_omie' => $event['codigo_cliente_omie']
+                'codigo_cliente_omie' => $codigoClienteOmie
             ],
             [
                 'codigo_cliente_integracao' => $event['codigo_cliente_integracao'] ?? null,
-                'cnpj_cpf' => $event['cnpj_cpf'],
-                'razao_social' => $event['razao_social'] ?: ($event['nome_fantasia'] ?: ''),
-                'nome_fantasia' => $event['nome_fantasia'] ?: ($event['razao_social'] ?: ''),
+                'cnpj_cpf' => $cnpjCpf,
+                'razao_social' => $razaoSocial,
+                'nome_fantasia' => $nomeFantasia,
                 'bairro' => $event['bairro'] ?? null,
                 'cep' => $event['cep'] ?? null,
                 'cidade' => $event['cidade'] ?? null,
@@ -258,7 +282,9 @@ class OmieWebhookController extends Controller
                 'endereco' => $event['endereco'] ?? null,
                 'endereco_numero' => $event['endereco_numero'] ?? null,
                 'complemento' => $event['complemento'] ?? null,
+                'email' => $event['email'] ?? null,
                 'inativo' => $event['inativo'] ?? 'N',
+                'pessoa_fisica' => $event['pessoa_fisica'] ?? 'N',
                 'telefone1_ddd' => $event['telefone1_ddd'] ?? ($event['telefone2_ddd'] ?? null),
                 'telefone1_numero' => $event['telefone1_numero'] ?? ($event['telefone2_numero'] ?? null),
             ]
@@ -270,7 +296,7 @@ class OmieWebhookController extends Controller
         NotificationService::send(
             $type,
             "Cliente " . ucfirst($actionWord),
-            "O cliente {$event['razao_social']} ({$event['cnpj_cpf']}) da {$uloSource} foi {$actionWord}."
+            "O cliente {$razaoSocial} (" . ($cnpjCpf ?? 'Sem documento') . ") da {$uloSource} foi {$actionWord}."
         );
     }
 }

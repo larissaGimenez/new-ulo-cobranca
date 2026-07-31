@@ -24,19 +24,39 @@ class ClientesController extends Controller
         $tab = $request->input('tab', session('clientes_tab', 'inadimplentes'));
         session(['clientes_tab' => $tab]);
 
-        $search = $request->input('search', session('clientes_search', ''));
-        session(['clientes_search' => $search]);
-
         $sortBy = $request->input('sort_by', session('clientes_sort_by', 'name'));
         session(['clientes_sort_by' => $sortBy]);
 
         $sortDir = $request->input('sort_dir', session('clientes_sort_dir', 'asc'));
         session(['clientes_sort_dir' => $sortDir]);
 
-        $selectedUlos = $request->input('ulos', session('clientes_ulos', $availableUlos));
-        session(['clientes_ulos' => $selectedUlos]);
+        if ($request->has('clear')) {
+            session()->forget(['clientes_search', 'clientes_ulos', 'clientes_faixa']);
+            $search = '';
+            $selectedUlos = $availableUlos;
+            $faixa = 'all';
+        } else {
+            if ($request->has('search')) {
+                $search = $request->input('search') ?? '';
+            } else {
+                $search = session('clientes_search', '');
+            }
 
-        $faixa = $request->input('faixa', session('clientes_faixa', 'all'));
+            if ($request->has('ulos')) {
+                $selectedUlos = $request->input('ulos', []);
+            } else {
+                $selectedUlos = session('clientes_ulos', $availableUlos);
+            }
+
+            if ($request->has('faixa')) {
+                $faixa = $request->input('faixa') ?? 'all';
+            } else {
+                $faixa = session('clientes_faixa', 'all');
+            }
+        }
+
+        session(['clientes_search' => $search]);
+        session(['clientes_ulos' => $selectedUlos]);
         session(['clientes_faixa' => $faixa]);
 
         // If no ULOs are selected, default to all available to avoid empty query unless user explicitly deselected all
@@ -178,7 +198,7 @@ class ClientesController extends Controller
             ['path' => $request->url(), 'query' => $request->query()]
         );
 
-        return view('pages.clientes.index', compact(
+        $viewData = compact(
             'paginator',
             'availableUlos',
             'selectedUlos',
@@ -189,6 +209,12 @@ class ClientesController extends Controller
             'faixa',
             'totalOverdueTitlesCount',
             'totalOverdueAmount'
-        ));
+        );
+
+        if ($request->ajax()) {
+            return view('pages.clientes.partials.table-content', $viewData);
+        }
+
+        return view('pages.clientes.index', $viewData);
     }
 }

@@ -26,14 +26,21 @@ Route::middleware([
     Route::get('/dev-settings/clientes', [DevSettingsController::class, 'clientesIndex'])->name('dev-settings.clientes');
     Route::post('/dev-settings/clientes/sync-page', [DevSettingsController::class, 'syncClientesPage'])->name('dev-settings.clientes.sync-page');
     Route::get('/dev-settings/vinculos', [DevSettingsController::class, 'vinculosIndex'])->name('dev-settings.vinculos');
+    Route::post('/dev-settings/vinculos/import-client', [DevSettingsController::class, 'importOrphanClient'])->name('dev-settings.vinculos.import-client');
+    Route::get('/dev-settings/vinculos/search-clients', [DevSettingsController::class, 'searchClients'])->name('dev-settings.vinculos.search-clients');
+    Route::post('/dev-settings/vinculos/reassociate', [DevSettingsController::class, 'reassociateTitle'])->name('dev-settings.vinculos.reassociate');
+    Route::get('/dev-settings/vinculos/{id}/suggest', [DevSettingsController::class, 'suggestReassociation'])->name('dev-settings.vinculos.suggest');
     Route::get('/dev-settings/contas', [DevSettingsController::class, 'contasIndex'])->name('dev-settings.contas');
     Route::post('/dev-settings/contas/sync-page', [DevSettingsController::class, 'syncContasPage'])->name('dev-settings.contas.sync-page');
     
-    // Reverb routes
-    Route::get('/dev-settings/reverb', [DevSettingsController::class, 'reverbIndex'])->name('dev-settings.reverb');
+    // Acompanhamento routes
+    Route::get('/dev-settings/acompanhamento', [DevSettingsController::class, 'acompanhamentoIndex'])->name('dev-settings.acompanhamento');
     Route::get('/dev-settings/reverb/status', [ReverbController::class, 'status'])->name('dev-settings.reverb.status');
     Route::post('/dev-settings/reverb/start', [ReverbController::class, 'start'])->name('dev-settings.reverb.start');
     Route::post('/dev-settings/reverb/stop', [ReverbController::class, 'stop'])->name('dev-settings.reverb.stop');
+
+    // Webhook logs route
+    Route::get('/dev-settings/logs-webhooks', [DevSettingsController::class, 'logsIndex'])->name('dev-settings.logs-webhooks');
 
     // Notification routes
     Route::get('/notifications/unread', [NotificationController::class, 'getUnread'])->name('notifications.unread');

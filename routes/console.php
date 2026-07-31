@@ -10,3 +10,7 @@ Artisan::command('inspire', function () {
 use Illuminate\Support\Facades\Schedule;
 
 Schedule::command('model:prune')->daily();
+
+Schedule::call(function () {
+    cache()->put('last_scheduler_run', now()->toDateTimeString());
+})->everyMinute();

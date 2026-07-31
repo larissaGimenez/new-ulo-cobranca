@@ -9,13 +9,7 @@
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-base-100 overflow-hidden shadow-xl sm:rounded-lg p-6 border border-base-200">
                 <!-- Navigation Tabs -->
-                <div class="tabs tabs-lifted mb-6">
-                    <a href="{{ route('dev-settings') }}" class="tab tab-active font-semibold">Contas a Receber</a>
-                    <a href="{{ route('dev-settings.clientes') }}" class="tab font-semibold">Clientes</a>
-                    <a href="{{ route('dev-settings.vinculos') }}" class="tab font-semibold">Vínculos</a>
-                    <a href="{{ route('dev-settings.contas') }}" class="tab font-semibold">Contas Correntes</a>
-                    <a href="{{ route('dev-settings.reverb') }}" class="tab font-semibold">Laravel Reverb</a>
-                </div>
+                @include('partials.dev-settings-tabs')
 
                 <!-- Resume Sync Banner -->
                 <div id="resume-banner" class="hidden alert alert-info mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">

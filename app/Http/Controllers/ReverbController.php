@@ -2,14 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\ReverbServerManager;
+use App\Services\SystemMonitorManager;
 use Illuminate\Http\Request;
 
 class ReverbController extends Controller
 {
     protected $manager;
 
-    public function __construct(ReverbServerManager $manager)
+    public function __construct(SystemMonitorManager $manager)
     {
         $this->manager = $manager;
     }
@@ -21,7 +21,7 @@ class ReverbController extends Controller
     {
         return response()->json([
             'success' => true,
-            'online' => $this->manager->isOnline()
+            'online' => $this->manager->isReverbOnline()
         ]);
     }
 
@@ -30,7 +30,7 @@ class ReverbController extends Controller
      */
     public function start()
     {
-        $this->manager->start();
+        $this->manager->startReverb();
 
         return response()->json([
             'success' => true,
@@ -43,7 +43,7 @@ class ReverbController extends Controller
      */
     public function stop()
     {
-        $this->manager->stop();
+        $this->manager->stopReverb();
 
         return response()->json([
             'success' => true,
