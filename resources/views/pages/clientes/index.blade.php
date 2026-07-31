@@ -538,6 +538,52 @@
                 });
             });
 
+            // --- Move Card via 3 Dots Menu ---
+            $(document).on('click', '[data-action="move-card"]', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                let cnpjCpf = String($(this).data('cnpj'));
+                let targetStage = $(this).data('target-stage');
+
+                if (document.activeElement) {
+                    document.activeElement.blur();
+                }
+
+                let $card = $(this).closest('.kanban-card');
+                if (!$card.length) {
+                    $card = $('.kanban-card[data-cnpj="' + cnpjCpf + '"]');
+                }
+                if (!$card.length) return;
+
+                let $sourceColumn = $card.closest('.kanban-column-body');
+                let $targetColumn = $('.kanban-column-body[data-stage="' + targetStage + '"]');
+
+                if (!$targetColumn.length) return;
+
+                $targetColumn.find('.empty-placeholder').remove();
+                $targetColumn.append($card);
+
+                if ($sourceColumn.find('.kanban-card').length === 0) {
+                    $sourceColumn.append('<div class="border-2 border-dashed border-base-300/80 rounded-xl p-6 text-center text-xs text-base-content/40 font-medium empty-placeholder my-auto">Sem cards nesta etapa</div>');
+                }
+
+                updateColumnSummaries();
+
+                $.ajax({
+                    url: "{{ route('clientes.update-stage') }}",
+                    type: "POST",
+                    data: {
+                        _token: "{{ csrf_token() }}",
+                        cnpj_cpf: cnpjCpf,
+                        stage: targetStage
+                    },
+                    error: function (err) {
+                        console.error('Erro ao mover card de etapa:', err);
+                    }
+                });
+            });
+
             // --- HTML5 Drag & Drop for Cards and Columns ---
             function initKanbanDragAndDrop() {
                 let draggedCard = null;
