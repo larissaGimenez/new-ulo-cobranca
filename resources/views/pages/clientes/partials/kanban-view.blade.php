@@ -1,16 +1,3 @@
-<!-- Top Kanban Actions: Add New Column -->
-<div class="flex justify-between items-center mb-4">
-    <div class="text-xs text-base-content/60 font-medium">
-        Arraste os cards entre as colunas ou reordene as próprias colunas arrastando pelo cabeçalho.
-    </div>
-    <button type="button" id="btn-add-column" class="btn btn-sm btn-outline btn-primary gap-2">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-        </svg>
-        <span>Nova Coluna</span>
-    </button>
-</div>
-
 <!-- Kanban Board View -->
 <div id="kanban-board-container" class="flex gap-4 overflow-x-auto pb-6 items-start w-full min-h-[650px]">
     @foreach($kanbanColumns as $colId => $col)
@@ -19,49 +6,93 @@
             draggable="true">
             
             <!-- Column Header -->
-            <div class="kanban-column-header bg-base-200 p-3 flex flex-col gap-2 border-b border-base-300 cursor-grab active:cursor-grabbing {{ $col['border_color'] }}">
+            <div class="kanban-column-header bg-base-200/80 p-3.5 flex flex-col gap-2.5 border-b border-base-300 cursor-grab active:cursor-grabbing rounded-t-xl {{ $col['border_color'] }}">
+                <!-- Header Line 1: Dot, Title, Badge & Action Icons -->
                 <div class="flex justify-between items-center">
                     <div class="flex items-center gap-2 truncate pr-1">
                         <span class="w-2.5 h-2.5 rounded-full {{ $col['dot_color'] }} shrink-0"></span>
                         <h4 class="font-bold text-xs text-base-content uppercase tracking-wider truncate col-title-text" title="{{ $col['title'] }}">{{ $col['title'] }}</h4>
+                        <span class="badge badge-sm badge-ghost border border-base-300 font-semibold text-[11px] px-2 py-0.5 col-count-badge">{{ $col['count'] }}</span>
                     </div>
                     
-                    <div class="flex items-center gap-1">
-                        <!-- Minimize / Collapse Button -->
-                        <button type="button" class="btn btn-ghost btn-xs text-base-content/50 hover:text-base-content col-toggle-collapse" title="Minimizar / Expandir">
-                            <span class="collapse-icon">─</span>
+                    <div class="flex items-center gap-0.5">
+                        <!-- Toggle Search Button -->
+                        <button type="button" class="btn btn-ghost btn-xs text-base-content/60 hover:text-base-content col-search-toggle" title="Buscar nesta coluna">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
                         </button>
-                        
-                        <!-- Delete Custom Column if not default -->
-                        @if(!in_array($colId, ['inadimplencia', 'contato_inicial', 'em_negociacao', 'acordo_ativo', 'pagamento_concluido']))
-                            <button type="button" class="btn btn-ghost btn-xs text-error/70 hover:text-error col-delete-btn" data-slug="{{ $colId }}" title="Excluir Coluna">✕</button>
-                        @endif
+
+                        <!-- 3-Dots Dropdown Options -->
+                        <div class="dropdown dropdown-end">
+                            <button type="button" tabindex="0" class="btn btn-ghost btn-xs text-base-content/60 hover:text-base-content" title="Opções da coluna">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                                </svg>
+                            </button>
+                            <ul tabindex="0" class="dropdown-content z-30 menu p-1 shadow-lg bg-base-100 rounded-box w-44 text-xs border border-base-200">
+                                @if(!in_array($colId, ['inadimplencia', 'contato_inicial', 'em_negociacao', 'acordo_ativo', 'pagamento_concluido']))
+                                    <li><a class="text-error font-semibold col-delete-btn" data-slug="{{ $colId }}">Excluir Coluna</a></li>
+                                @else
+                                    <li class="disabled"><span class="text-base-content/40">Coluna Padrão</span></li>
+                                @endif
+                            </ul>
+                        </div>
+
+                        <!-- Collapse Button -->
+                        <button type="button" class="btn btn-ghost btn-xs text-base-content/60 hover:text-base-content col-toggle-collapse" title="Minimizar Coluna">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                            </svg>
+                        </button>
                     </div>
                 </div>
 
-                <!-- Column Summary Count & Total -->
-                <div class="text-[11px] text-base-content/60 font-semibold column-summary-text" data-col="{{ $colId }}">
-                    <span class="col-count">{{ $col['count'] }}</span> cards - R$ <span class="col-total">{{ number_format($col['total'], 2, ',', '.') }}</span>
+                <!-- Header Line 2: Total Sum & DaisyUI Sort Dropdown -->
+                <div class="flex justify-between items-center text-xs font-medium border-t border-base-300/40 pt-2 column-summary-text" data-col="{{ $colId }}">
+                    <div class="text-base-content/70">
+                        Total: <span class="font-bold text-error">R$ <span class="col-total">{{ number_format($col['total'], 2, ',', '.') }}</span></span>
+                    </div>
+
+                    <!-- Visual Sort Dropdown Matching Screenshot -->
+                    <div class="dropdown dropdown-end">
+                        <button type="button" tabindex="0" class="btn btn-ghost btn-xs text-xs font-semibold text-base-content/70 hover:text-base-content flex items-center gap-1 px-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-base-content/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                            </svg>
+                            <span class="col-sort-label">Padrão</span>
+                        </button>
+                        <ul tabindex="0" class="dropdown-content z-30 menu p-1.5 shadow-xl bg-base-100 rounded-xl w-52 text-xs border border-base-200 col-sort-menu space-y-0.5">
+                            <li><a data-sort="default" class="col-sort-item active font-bold text-primary">Padrão</a></li>
+                            <div class="divider my-0 opacity-40"></div>
+                            <li><a data-sort="divida_desc" class="col-sort-item">Dívida (Maior)</a></li>
+                            <li><a data-sort="divida_asc" class="col-sort-item">Dívida (Menor)</a></li>
+                            <div class="divider my-0 opacity-40"></div>
+                            <li><a data-sort="name_asc" class="col-sort-item">Nome (A-Z)</a></li>
+                            <li><a data-sort="name_desc" class="col-sort-item">Nome (Z-A)</a></li>
+                            <div class="divider my-0 opacity-40"></div>
+                            <li><a data-sort="atraso_desc" class="col-sort-item">Inadimplência (Maior)</a></li>
+                            <li><a data-sort="atraso_asc" class="col-sort-item">Inadimplência (Menor)</a></li>
+                        </ul>
+                    </div>
                 </div>
 
-                <!-- Column Search & Sort Controls (Visible when expanded) -->
-                <div class="col-controls flex flex-col gap-1.5 mt-1 pt-2 border-t border-base-300/60">
-                    <input type="text" class="input input-xs input-bordered w-full col-search-input" placeholder="Buscar nesta coluna..." autocomplete="off" />
-                    <select class="select select-xs select-bordered w-full col-sort-select">
-                        <option value="default">Ordenação padrão</option>
-                        <option value="name_asc">Nome (A - Z)</option>
-                        <option value="name_desc">Nome (Z - A)</option>
-                        <option value="divida_desc">Maior Dívida</option>
-                        <option value="divida_asc">Menor Dívida</option>
-                        <option value="atraso_desc">Maior Atraso</option>
-                        <option value="atraso_asc">Menor Atraso</option>
-                    </select>
+                <!-- Collapsible Search Container (Hidden by default until search button clicked) -->
+                <div class="col-search-container hidden pt-1">
+                    <div class="relative">
+                        <input type="text" class="input input-xs input-bordered w-full pr-6 col-search-input" placeholder="Buscar nesta coluna..." autocomplete="off" />
+                        <button type="button" class="btn btn-ghost btn-xs text-xs absolute right-0 top-0 text-base-content/40 hover:text-error col-search-clear">✕</button>
+                    </div>
                 </div>
             </div>
 
             <!-- Collapsed Vertical View Container (Hidden by default) -->
             <div class="collapsed-view-container hidden flex-col items-center py-6 px-2 gap-4 cursor-pointer min-h-[500px]">
-                <button type="button" class="btn btn-circle btn-xs btn-ghost col-toggle-collapse" title="Expandir Coluna">▶</button>
+                <button type="button" class="btn btn-circle btn-xs btn-ghost col-toggle-collapse" title="Expandir Coluna">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                </button>
                 <div class="writing-mode-vertical text-xs font-bold uppercase tracking-wider text-base-content/70 select-none">
                     {{ $col['title'] }}
                 </div>
@@ -83,7 +114,7 @@
                         $atrasoColor = $cliente->dias_atraso > 90 ? 'text-error' : ($cliente->dias_atraso > 30 ? 'text-warning' : ($cliente->dias_atraso > 0 ? 'text-info' : 'text-success'));
                     @endphp
 
-                    <!-- Kanban Card Item (Without Unidades/ULOs text) -->
+                    <!-- Kanban Card Item (Clean format without ULO units) -->
                     <div class="kanban-card bg-base-100 p-4 rounded-xl shadow-xs border border-base-200 hover:shadow-md transition cursor-grab active:cursor-grabbing flex flex-col justify-between gap-3 group relative"
                         draggable="true" 
                         data-cnpj="{{ $cliente->cnpj_cpf }}"
@@ -118,6 +149,14 @@
             </div>
         </div>
     @endforeach
+
+    <!-- Adicionar Etapa Column Card (Matching Second Screenshot) -->
+    <div id="btn-add-column-card" class="kanban-add-column-card bg-base-200/30 hover:bg-base-200/60 border-2 border-dashed border-base-300 hover:border-primary/50 rounded-xl flex flex-col justify-center items-center cursor-pointer transition p-8 text-base-content/40 hover:text-primary w-80 shrink-0 min-h-[550px] group">
+        <div class="text-6xl font-light leading-none group-hover:scale-110 transition-transform select-none">
+            +
+        </div>
+        <span class="font-bold text-xs tracking-widest mt-4 uppercase text-base-content/60 group-hover:text-primary">ADICIONAR ETAPA</span>
+    </div>
 </div>
 
 <style>

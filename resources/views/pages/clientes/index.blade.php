@@ -350,6 +350,22 @@
             });
 
             // --- Per-Column Search & Sort in Kanban ---
+            $(document).on('click', '.col-search-toggle', function (e) {
+                e.stopPropagation();
+                let $container = $(this).closest('.kanban-column-header').find('.col-search-container');
+                $container.toggleClass('hidden');
+                if (!$container.hasClass('hidden')) {
+                    $container.find('.col-search-input').focus();
+                }
+            });
+
+            $(document).on('click', '.col-search-clear', function (e) {
+                e.stopPropagation();
+                let $header = $(this).closest('.kanban-column-header');
+                $header.find('.col-search-input').val('').trigger('input');
+                $header.find('.col-search-container').addClass('hidden');
+            });
+
             $(document).on('keyup input', '.col-search-input', function () {
                 let query = $(this).val().toLowerCase().trim();
                 let $column = $(this).closest('.kanban-column-wrapper');
@@ -364,16 +380,31 @@
                 });
             });
 
-            $(document).on('change', '.col-sort-select', function () {
-                let sortVal = $(this).val();
-                let $columnBody = $(this).closest('.kanban-column-wrapper').find('.kanban-column-body');
-                let $cards = $columnBody.find('.kanban-card').get();
+            // Column Sort Dropdown Handler matching Screenshot
+            $(document).on('click', '.col-sort-item', function (e) {
+                e.preventDefault();
+                let sortVal = $(this).data('sort');
+                let sortText = $(this).text();
+                let $wrapper = $(this).closest('.kanban-column-wrapper');
+                let $header = $wrapper.find('.kanban-column-header');
+                let $columnBody = $wrapper.find('.kanban-column-body');
 
-                if (sortVal === 'default') return;
+                // Update active item styling
+                $header.find('.col-sort-item').removeClass('active font-bold text-primary');
+                $(this).addClass('active font-bold text-primary');
+                $header.find('.col-sort-label').text(sortText);
+
+                // Close daisyUI dropdown menu
+                if (document.activeElement) {
+                    document.activeElement.blur();
+                }
+
+                let $cards = $columnBody.find('.kanban-card').get();
+                if ($cards.length === 0) return;
 
                 $cards.sort(function (a, b) {
-                    let nameA = $(a).data('name');
-                    let nameB = $(b).data('name');
+                    let nameA = $(a).data('name') || '';
+                    let nameB = $(b).data('name') || '';
                     let amountA = parseFloat($(a).data('amount')) || 0;
                     let amountB = parseFloat($(b).data('amount')) || 0;
                     let atrasoA = parseInt($(a).data('atraso')) || 0;
@@ -433,8 +464,8 @@
             }
 
             // --- Add New Kanban Column ---
-            $(document).on('click', '#btn-add-column', function () {
-                let name = prompt("Digite o nome da nova coluna para o Kanban:");
+            $(document).on('click', '#btn-add-column-card, #btn-add-column', function () {
+                let name = prompt("Digite o nome da nova etapa para o Kanban:");
                 if (!name || name.trim() === '') return;
 
                 $.ajax({
