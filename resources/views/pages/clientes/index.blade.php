@@ -715,7 +715,7 @@
                 });
             }
 
-            // Recalculate summary stats for columns
+            // Recalculate summary stats for columns and toggle delete button visibility
             function updateColumnSummaries() {
                 $('.kanban-column-body').each(function () {
                     let colId = $(this).data('stage');
@@ -726,12 +726,21 @@
                         total += parseFloat($(this).data('amount')) || 0;
                     });
 
+                    let $wrapper = $('.kanban-column-wrapper[data-col-id="' + colId + '"]');
+                    let $header = $wrapper.find('.kanban-column-header');
+
+                    $wrapper.find('.col-count-badge').text(count);
+
                     let $summary = $('.column-summary-text[data-col="' + colId + '"]');
-                    $summary.find('.col-count').text(count);
                     $summary.find('.col-total').text(total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 
-                    let $wrapper = $('.kanban-column-wrapper[data-col-id="' + colId + '"]');
-                    $wrapper.find('.col-count-badge').text(count);
+                    // Toggle Delete Column Button visibility dynamically
+                    let $deleteBtn = $header.find('.col-delete-btn');
+                    if (count > 0) {
+                        $deleteBtn.addClass('hidden');
+                    } else {
+                        $deleteBtn.removeClass('hidden');
+                    }
                 });
             }
 
