@@ -16,28 +16,27 @@
                         $activeFiltersCount = 0;
                         if(!empty($search)) $activeFiltersCount++;
                         if(!empty($selectedUlos) && count($selectedUlos) < count($availableUlos)) $activeFiltersCount++;
+                        if(!empty($selectedStages) && count($selectedStages) < count($dbColumns)) $activeFiltersCount++;
                         if($tab !== 'adimplentes' && $faixa !== 'all') $activeFiltersCount++;
                     @endphp
 
-                    <!-- Quick Search Bar & Filtros Button Side-by-Side (Same Height as Kanban/Lista) -->
+                    <!-- Quick Search Bar & Icon-Only Filtros Button Side-by-Side -->
                     <form id="quick-search-form" method="GET" action="{{ route('clientes') }}" class="flex-1 flex flex-wrap sm:flex-nowrap items-center gap-2">
-                        <div class="join w-full max-w-xl">
-                            <input type="text" id="quick-search-input" name="search" value="{{ $search }}" placeholder="Buscar por Nome, Fantasia ou CNPJ..." class="input input-bordered input-sm w-full join-item" autocomplete="off" />
-                            <button type="submit" class="btn btn-primary btn-sm join-item">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <div class="relative w-full max-w-xl">
+                            <input type="text" id="quick-search-input" name="search" value="{{ $search }}" placeholder="Buscar por Nome, Fantasia, CNPJ, E-mail ou Telefone..." class="input input-bordered input-sm w-full pl-9 pr-4" autocomplete="off" />
+                            <div class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-base-content/40">
+                                <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                 </svg>
-                                <span class="hidden md:inline">Buscar</span>
-                            </button>
+                            </div>
                         </div>
 
-                        <!-- Drawer Filter Trigger Button (btn-sm matching height) -->
-                        <label for="filter-drawer" class="btn btn-outline btn-primary btn-sm gap-2 cursor-pointer shrink-0">
+                        <!-- Drawer Filter Trigger Button (Icon Only) -->
+                        <label for="filter-drawer" class="btn btn-outline btn-primary btn-sm btn-square cursor-pointer shrink-0 relative" title="Filtros">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                             </svg>
-                            <span>Filtros</span>
-                            <span id="drawer-filter-badge" class="badge badge-xs badge-primary text-white font-bold {{ $activeFiltersCount > 0 ? '' : 'hidden' }}">{{ $activeFiltersCount }}</span>
+                            <span id="drawer-filter-badge" class="badge badge-xs badge-primary text-white font-bold absolute -top-1 -right-1 {{ $activeFiltersCount > 0 ? '' : 'hidden' }}">{{ $activeFiltersCount }}</span>
                         </label>
                     </form>
 
@@ -95,7 +94,26 @@
                             <!-- Search Field -->
                             <div class="form-control">
                                 <label class="label"><span class="label-text font-bold">Buscar Cliente</span></label>
-                                <input type="text" id="drawer-search-input" name="search" value="{{ $search }}" placeholder="Nome, Fantasia ou CNPJ..." class="input input-bordered w-full" autocomplete="off" />
+                                <input type="text" id="drawer-search-input" name="search" value="{{ $search }}" placeholder="Nome, Fantasia, CNPJ, E-mail ou Telefone..." class="input input-bordered w-full" autocomplete="off" />
+                            </div>
+
+                            <!-- Etapa Multi-select -->
+                            <div class="form-control">
+                                <div class="flex justify-between items-center mb-1">
+                                    <label class="label p-0"><span class="label-text font-bold">Filtrar por Etapa</span></label>
+                                    <button type="button" id="toggle-all-stages" class="text-xs text-primary font-semibold hover:underline">Marcar / Desmarcar Todos</button>
+                                </div>
+                                <div class="flex flex-col gap-2 p-3 bg-base-200 rounded-lg border border-base-300 max-h-44 overflow-y-auto">
+                                    @foreach($dbColumns as $col)
+                                        <label class="label cursor-pointer justify-start gap-3 hover:bg-base-300/50 p-1.5 rounded">
+                                            <input type="checkbox" name="stages[]" value="{{ $col->slug }}" 
+                                                class="checkbox checkbox-primary checkbox-sm filter-stage-checkbox" 
+                                                {{ in_array($col->slug, $selectedStages) ? 'checked' : '' }} />
+                                            <span class="w-2.5 h-2.5 rounded-full {{ $col->dot_color }}"></span>
+                                            <span class="label-text font-medium text-xs uppercase">{{ $col->title }}</span>
+                                        </label>
+                                    @endforeach
+                                </div>
                             </div>
 
                             <!-- ULO Multi-select -->
@@ -104,7 +122,7 @@
                                     <label class="label p-0"><span class="label-text font-bold">Filtrar por ULOs</span></label>
                                     <button type="button" id="toggle-all-ulos" class="text-xs text-primary font-semibold hover:underline">Marcar / Desmarcar Todos</button>
                                 </div>
-                                <div class="flex flex-col gap-2 p-3 bg-base-200 rounded-lg border border-base-300 max-h-60 overflow-y-auto">
+                                <div class="flex flex-col gap-2 p-3 bg-base-200 rounded-lg border border-base-300 max-h-44 overflow-y-auto">
                                     @foreach($availableUlos as $ulo)
                                         <label class="label cursor-pointer justify-start gap-3 hover:bg-base-300/50 p-1.5 rounded">
                                             <input type="checkbox" name="ulos[]" value="{{ $ulo }}" 
@@ -217,12 +235,15 @@
                 let search = $('#quick-search-input').val().trim();
                 let selectedUlos = $('.filter-ulo-checkbox:checked').length;
                 let totalUlos = $('.filter-ulo-checkbox').length;
+                let selectedStages = $('.filter-stage-checkbox:checked').length;
+                let totalStages = $('.filter-stage-checkbox').length;
                 let faixa = $('#filter-faixa-select').val();
                 let currentTab = $('#filter-tab').val();
 
                 let count = 0;
                 if (search !== '') count++;
                 if (selectedUlos > 0 && selectedUlos < totalUlos) count++;
+                if (selectedStages > 0 && selectedStages < totalStages) count++;
                 if (currentTab !== 'adimplentes' && faixa !== 'all') count++;
 
                 let $badge = $('#drawer-filter-badge');
@@ -271,11 +292,19 @@
                 $checkboxes.prop('checked', !allChecked);
             });
 
+            // Toggle All Stages
+            $('#toggle-all-stages').on('click', function () {
+                let $checkboxes = $('.filter-stage-checkbox');
+                let allChecked = $checkboxes.filter(':checked').length === $checkboxes.length;
+                $checkboxes.prop('checked', !allChecked);
+            });
+
             // Clear All Filters
             $(document).on('click', '#drawer-clear-btn, [data-action="clear-all"]', function () {
                 $('#quick-search-input').val('');
                 $('#drawer-search-input').val('');
                 $('.filter-ulo-checkbox').prop('checked', true);
+                $('.filter-stage-checkbox').prop('checked', true);
                 $('#filter-faixa-select').val('all');
 
                 fetchFilteredData({ clear: 1 }, true);
@@ -482,7 +511,7 @@
             $(document).on('click', '.col-delete-btn', function (e) {
                 e.stopPropagation();
                 let slug = $(this).data('slug');
-                if (!confirm("Deseja realmente excluir esta coluna? Os cards voltarão para a primeira etapa.")) return;
+                if (!confirm("Deseja realmente excluir esta coluna?")) return;
 
                 $.ajax({
                     url: "{{ route('clientes.kanban.column.delete') }}",
@@ -495,7 +524,7 @@
                         fetchFilteredData({}, false);
                     },
                     error: function (err) {
-                        alert('Erro ao excluir coluna');
+                        alert(err.responseJSON?.error || 'Erro ao excluir coluna');
                     }
                 });
             });
@@ -615,7 +644,6 @@
                         $(this).before(draggedColumn);
                     }
 
-                    // Collect new column order and save to DB
                     let order = [];
                     $container.children('.kanban-column-wrapper').each(function () {
                         order.push($(this).data('col-id'));

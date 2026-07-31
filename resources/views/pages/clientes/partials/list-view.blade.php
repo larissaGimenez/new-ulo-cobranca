@@ -13,14 +13,21 @@
                     </button>
                 </th>
                 <th>
-                    <button type="button" data-action="sort" data-sort-by="cnpj" data-sort-dir="{{ $sortBy === 'cnpj' && $sortDir === 'asc' ? 'desc' : 'asc' }}" class="flex items-center gap-1 group font-bold hover:text-primary">
-                        CNPJ / CPF
-                        @if($sortBy === 'cnpj')
+                    <button type="button" data-action="sort" data-sort-by="email" data-sort-dir="{{ $sortBy === 'email' && $sortDir === 'asc' ? 'desc' : 'asc' }}" class="flex items-center gap-1 group font-bold hover:text-primary">
+                        E-mail
+                        @if($sortBy === 'email')
                             <span>{{ $sortDir === 'asc' ? '▲' : '▼' }}</span>
                         @endif
                     </button>
                 </th>
-                <th class="font-bold">Etapa (Kanban)</th>
+                <th>
+                    <button type="button" data-action="sort" data-sort-by="stage" data-sort-dir="{{ $sortBy === 'stage' && $sortDir === 'asc' ? 'desc' : 'asc' }}" class="flex items-center gap-1 group font-bold hover:text-primary">
+                        Etapa
+                        @if($sortBy === 'stage')
+                            <span>{{ $sortDir === 'asc' ? '▲' : '▼' }}</span>
+                        @endif
+                    </button>
+                </th>
                 <th class="text-right">
                     <button type="button" data-action="sort" data-sort-by="divida" data-sort-dir="{{ $sortBy === 'divida' && $sortDir === 'asc' ? 'desc' : 'asc' }}" class="flex items-center justify-end gap-1 group font-bold w-full hover:text-primary">
                         Dívida Total
@@ -49,8 +56,14 @@
                     <!-- Nome -->
                     <td class="font-bold text-base-content">{{ $cliente->name }}</td>
                     
-                    <!-- CNPJ -->
-                    <td class="font-mono text-sm">{{ $cliente->cnpj_cpf }}</td>
+                    <!-- E-mail -->
+                    <td class="text-sm">
+                        @if(!empty($cliente->email))
+                            <span class="text-base-content/80 font-medium">{{ $cliente->email }}</span>
+                        @else
+                            <span class="text-base-content/40 text-xs">Sem e-mail</span>
+                        @endif
+                    </td>
                     
                     <!-- Etapa (Kanban Stage Flag) -->
                     <td class="whitespace-nowrap">
@@ -87,7 +100,7 @@
                     <!-- Telefone -->
                     <td>
                         @if(!empty($cliente->phone))
-                            <span class="text-xs">
+                            <span class="text-xs font-mono">
                                 @if(!empty($cliente->phone_ddd))
                                     ({{ $cliente->phone_ddd }})
                                 @endif

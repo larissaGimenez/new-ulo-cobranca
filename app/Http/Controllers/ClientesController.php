@@ -21,6 +21,19 @@ class ClientesController extends Controller
             }
         }
 
+        // Fetch Dynamic Kanban Columns from Database
+        $dbColumns = DB::table('kanban_columns')->orderBy('position', 'asc')->get();
+        if ($dbColumns->isEmpty()) {
+            $dbColumns = collect([
+                (object)['slug' => 'inadimplencia', 'title' => 'INADIMPLÊNCIA', 'dot_color' => 'bg-error', 'border_color' => 'border-t-4 border-t-error', 'position' => 1],
+                (object)['slug' => 'contato_inicial', 'title' => 'CONTATO INICIAL', 'dot_color' => 'bg-warning', 'border_color' => 'border-t-4 border-t-warning', 'position' => 2],
+                (object)['slug' => 'em_negociacao', 'title' => 'EM NEGOCIAÇÃO', 'dot_color' => 'bg-info', 'border_color' => 'border-t-4 border-t-info', 'position' => 3],
+                (object)['slug' => 'acordo_ativo', 'title' => 'ACORDO ATIVO', 'dot_color' => 'bg-primary', 'border_color' => 'border-t-4 border-t-primary', 'position' => 4],
+                (object)['slug' => 'pagamento_concluido', 'title' => 'PAGAMENTO CONCLUÍDO', 'dot_color' => 'bg-success', 'border_color' => 'border-t-4 border-t-success', 'position' => 5],
+            ]);
+        }
+        $allStageSlugs = $dbColumns->pluck('slug')->toArray();
+
         // 2. Manage Session Persistence for Filters & View Mode
         $viewMode = $request->input('view_mode', session('clientes_view_mode', 'lista'));
         session(['clientes_view_mode' => $viewMode]);
@@ -35,10 +48,11 @@ class ClientesController extends Controller
         session(['clientes_sort_dir' => $sortDir]);
 
         if ($request->has('clear')) {
-            session()->forget(['clientes_search', 'clientes_ulos', 'clientes_faixa']);
+            session()->forget(['clientes_search', 'clientes_ulos', 'clientes_faixa', 'clientes_stages']);
             $search = '';
             $selectedUlos = $availableUlos;
             $faixa = 'all';
+            $selectedStages = $allStageSlugs;
         } else {
             if ($request->has('search')) {
                 $search = $request->input('search') ?? '';
@@ -57,15 +71,25 @@ class ClientesController extends Controller
             } else {
                 $faixa = session('clientes_faixa', 'all');
             }
+
+            if ($request->has('stages')) {
+                $selectedStages = $request->input('stages', []);
+            } else {
+                $selectedStages = session('clientes_stages', $allStageSlugs);
+            }
         }
 
         session(['clientes_search' => $search]);
         session(['clientes_ulos' => $selectedUlos]);
         session(['clientes_faixa' => $faixa]);
+        session(['clientes_stages' => $selectedStages]);
 
-        // If no ULOs are selected, default to all available to avoid empty query unless user explicitly deselected all
+        // Fallback if empty
         if (empty($selectedUlos) && !$request->has('ulos')) {
             $selectedUlos = $availableUlos;
+        }
+        if (empty($selectedStages) && !$request->has('stages')) {
+            $selectedStages = $allStageSlugs;
         }
 
         // 3. Build Raw Query with CTEs and Kanban Stage Left Join
@@ -83,6 +107,7 @@ class ClientesController extends Controller
             SELECT 
                 c.cnpj_cpf,
                 MAX(c.razao_social) as name,
+                MAX(c.email) as email,
                 MAX(c.telefone1_numero) as phone,
                 MAX(c.telefone1_ddd) as phone_ddd,
                 acu.ulos_list as all_ulos,
@@ -135,15 +160,15 @@ class ClientesController extends Controller
             $queryStr .= " AND 1=0";
         }
 
-        // Apply Search Filter
+        // Apply Search Filter (Name, Fantasia, CNPJ, Email, Phone)
         if (!empty($search)) {
-            $queryStr .= " AND (c.razao_social ILIKE :search OR c.nome_fantasia ILIKE :search OR c.cnpj_cpf ILIKE :search)";
+            $queryStr .= " AND (c.razao_social ILIKE :search OR c.nome_fantasia ILIKE :search OR c.cnpj_cpf ILIKE :search OR c.email ILIKE :search OR c.telefone1_numero ILIKE :search)";
             $bindings['search'] = '%' . $search . '%';
         }
 
         $queryStr .= " GROUP BY c.cnpj_cpf, acu.ulos_list";
 
-        // Apply Tab Filter & Faixa Filter (HAVING clause)
+        // Apply Tab Filter, Faixa Filter & Stage Filter (HAVING clause)
         $havingClauses = [];
         if ($tab === 'inadimplentes') {
             $havingClauses[] = "COALESCE(SUM(CASE WHEN cp.status_titulo = 'ATRASADO' AND rc.n_cod_c_c IS NULL THEN cp.valor_documento ELSE 0 END), 0) > 0";
@@ -154,7 +179,7 @@ class ClientesController extends Controller
             $havingClauses[] = "COALESCE(SUM(CASE WHEN cp.status_titulo = 'ATRASADO' THEN cp.valor_documento ELSE 0 END), 0) = 0";
         }
 
-        // Apply Aging Faixa Filter (only makes sense for inadimplentes tabs)
+        // Apply Aging Faixa Filter
         if ($tab !== 'adimplentes' && $faixa !== 'all') {
             if ($faixa === '30') {
                 $havingClauses[] = "COALESCE(CURRENT_DATE - MIN(CASE WHEN cp.status_titulo = 'ATRASADO' THEN cp.data_previsao END), 0) <= 30";
@@ -165,6 +190,17 @@ class ClientesController extends Controller
             }
         }
 
+        // Apply Stage Filter
+        if (!empty($selectedStages) && count($selectedStages) < count($allStageSlugs)) {
+            $stagePlaceholders = [];
+            foreach ($selectedStages as $idx => $stgSlug) {
+                $key = "stg_" . $idx;
+                $stagePlaceholders[] = ":" . $key;
+                $bindings[$key] = $stgSlug;
+            }
+            $havingClauses[] = "COALESCE(MAX(ks.stage), CASE WHEN SUM(CASE WHEN cp.status_titulo = 'ATRASADO' THEN cp.valor_documento ELSE 0 END) > 0 THEN 'inadimplencia' ELSE 'pagamento_concluido' END) IN (" . implode(',', $stagePlaceholders) . ")";
+        }
+
         if (count($havingClauses) > 0) {
             $queryStr .= " HAVING " . implode(' AND ', $havingClauses);
         }
@@ -172,7 +208,8 @@ class ClientesController extends Controller
         // Apply Order By
         $allowedSorts = [
             'name' => 'name',
-            'cnpj' => 'c.cnpj_cpf',
+            'email' => 'email',
+            'stage' => 'stage',
             'divida' => ($tab === 'inadimplentes_redecard' ? 'divida_redecard' : 'divida_comum'),
             'atraso' => 'dias_atraso'
         ];
@@ -194,18 +231,6 @@ class ClientesController extends Controller
                 $totalOverdueTitlesCount += (int)$row->qtd_titulos_comum;
                 $totalOverdueAmount += (float)$row->divida_comum;
             }
-        }
-
-        // Fetch Dynamic Kanban Columns from Database
-        $dbColumns = DB::table('kanban_columns')->orderBy('position', 'asc')->get();
-        if ($dbColumns->isEmpty()) {
-            $dbColumns = collect([
-                (object)['slug' => 'inadimplencia', 'title' => 'INADIMPLÊNCIA', 'dot_color' => 'bg-error', 'border_color' => 'border-t-4 border-t-error', 'position' => 1],
-                (object)['slug' => 'contato_inicial', 'title' => 'CONTATO INICIAL', 'dot_color' => 'bg-warning', 'border_color' => 'border-t-4 border-t-warning', 'position' => 2],
-                (object)['slug' => 'em_negociacao', 'title' => 'EM NEGOCIAÇÃO', 'dot_color' => 'bg-info', 'border_color' => 'border-t-4 border-t-info', 'position' => 3],
-                (object)['slug' => 'acordo_ativo', 'title' => 'ACORDO ATIVO', 'dot_color' => 'bg-primary', 'border_color' => 'border-t-4 border-t-primary', 'position' => 4],
-                (object)['slug' => 'pagamento_concluido', 'title' => 'PAGAMENTO CONCLUÍDO', 'dot_color' => 'bg-success', 'border_color' => 'border-t-4 border-t-success', 'position' => 5],
-            ]);
         }
 
         $kanbanColumns = [];
@@ -256,6 +281,8 @@ class ClientesController extends Controller
             'paginator',
             'availableUlos',
             'selectedUlos',
+            'dbColumns',
+            'selectedStages',
             'tab',
             'search',
             'sortBy',
