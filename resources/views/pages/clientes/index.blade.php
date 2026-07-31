@@ -69,8 +69,8 @@
         <!-- Drawer Side (Filters Sidebar) -->
         <div class="drawer-side z-50">
             <label for="filter-drawer" aria-label="fechar filtros" class="drawer-overlay"></label>
-            <div class="bg-base-100 min-h-full w-80 sm:w-96 p-6 text-base-content flex flex-col justify-between shadow-2xl border-l border-base-200">
-                <form id="drawer-filter-form" method="GET" action="{{ route('clientes') }}" class="flex flex-col justify-between h-full">
+            <div class="bg-base-100 h-screen max-h-screen w-80 sm:w-96 p-5 text-base-content flex flex-col justify-between shadow-2xl border-l border-base-200 overflow-hidden">
+                <form id="drawer-filter-form" method="GET" action="{{ route('clientes') }}" class="flex flex-col h-full min-h-0 overflow-hidden">
                     <!-- Hidden State Inputs -->
                     <input type="hidden" name="view_mode" id="filter-view-mode" value="{{ $viewMode }}">
                     <input type="hidden" name="tab" id="filter-tab" value="{{ $tab }}">
@@ -78,84 +78,93 @@
                     <input type="hidden" name="sort_dir" id="filter-sort-dir" value="{{ $sortDir }}">
                     <input type="hidden" name="page" id="filter-page" value="1">
 
-                    <div>
-                        <!-- Header -->
-                        <div class="flex justify-between items-center pb-4 border-b border-base-200 mb-6">
-                            <div class="flex items-center gap-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <!-- Drawer Header (Fixed at top) -->
+                    <div class="flex justify-between items-center pb-3 border-b border-base-200 shrink-0 mb-4">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                                 </svg>
-                                <h3 class="font-bold text-lg text-base-content">Filtros da Lista</h3>
                             </div>
-                            <label for="filter-drawer" class="btn btn-sm btn-circle btn-ghost">✕</label>
+                            <div>
+                                <h3 class="font-bold text-base text-base-content leading-tight">Filtros Avançados</h3>
+                                <p class="text-[11px] text-base-content/50">Refine a listagem de clientes</p>
+                            </div>
+                        </div>
+                        <label for="filter-drawer" class="btn btn-sm btn-circle btn-ghost text-base-content/60 hover:text-error">✕</label>
+                    </div>
+
+                    <!-- Scrollable Form Body -->
+                    <div class="flex-1 overflow-y-auto custom-scrollbar pr-1.5 space-y-5 min-h-0">
+                        <!-- Search Field -->
+                        <div class="form-control">
+                            <label class="label py-1"><span class="label-text font-bold text-xs uppercase tracking-wider text-base-content/70">Buscar Cliente</span></label>
+                            <div class="relative">
+                                <input type="text" id="drawer-search-input" name="search" value="{{ $search }}" placeholder="Nome, Fantasia, CNPJ, E-mail ou Fone..." class="input input-sm input-bordered w-full pl-8" autocomplete="off" />
+                                <svg class="h-4 w-4 text-base-content/40 absolute left-2.5 top-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                            </div>
                         </div>
 
-                        <div class="space-y-6">
-                            <!-- Search Field -->
-                            <div class="form-control">
-                                <label class="label"><span class="label-text font-bold">Buscar Cliente</span></label>
-                                <input type="text" id="drawer-search-input" name="search" value="{{ $search }}" placeholder="Nome, Fantasia, CNPJ, E-mail ou Telefone..." class="input input-bordered w-full" autocomplete="off" />
+                        <!-- Etapa Multi-select -->
+                        <div class="form-control">
+                            <div class="flex justify-between items-center mb-1">
+                                <label class="label p-0"><span class="label-text font-bold text-xs uppercase tracking-wider text-base-content/70">Etapas do Kanban</span></label>
+                                <button type="button" id="toggle-all-stages" class="text-[11px] text-primary font-semibold hover:underline">Selecionar Todos</button>
                             </div>
+                            <div class="flex flex-col gap-1.5 p-2 bg-base-200/60 rounded-xl border border-base-300">
+                                @foreach($dbColumns as $col)
+                                    <label class="label cursor-pointer justify-start gap-2.5 hover:bg-base-100 p-1.5 rounded-lg transition-colors">
+                                        <input type="checkbox" name="stages[]" value="{{ $col->slug }}" 
+                                            class="checkbox checkbox-primary checkbox-xs filter-stage-checkbox" 
+                                            {{ in_array($col->slug, $selectedStages) ? 'checked' : '' }} />
+                                        <span class="w-2.5 h-2.5 rounded-full {{ $col->dot_color }} shrink-0"></span>
+                                        <span class="label-text font-medium text-xs uppercase truncate">{{ $col->title }}</span>
+                                    </label>
+                                @endforeach
+                            </div>
+                        </div>
 
-                            <!-- Etapa Multi-select -->
-                            <div class="form-control">
-                                <div class="flex justify-between items-center mb-1">
-                                    <label class="label p-0"><span class="label-text font-bold">Filtrar por Etapa</span></label>
-                                    <button type="button" id="toggle-all-stages" class="text-xs text-primary font-semibold hover:underline">Marcar / Desmarcar Todos</button>
-                                </div>
-                                <div class="flex flex-col gap-2 p-3 bg-base-200 rounded-lg border border-base-300 max-h-44 overflow-y-auto">
-                                    @foreach($dbColumns as $col)
-                                        <label class="label cursor-pointer justify-start gap-3 hover:bg-base-300/50 p-1.5 rounded">
-                                            <input type="checkbox" name="stages[]" value="{{ $col->slug }}" 
-                                                class="checkbox checkbox-primary checkbox-sm filter-stage-checkbox" 
-                                                {{ in_array($col->slug, $selectedStages) ? 'checked' : '' }} />
-                                            <span class="w-2.5 h-2.5 rounded-full {{ $col->dot_color }}"></span>
-                                            <span class="label-text font-medium text-xs uppercase">{{ $col->title }}</span>
-                                        </label>
-                                    @endforeach
-                                </div>
+                        <!-- ULO Multi-select -->
+                        <div class="form-control">
+                            <div class="flex justify-between items-center mb-1">
+                                <label class="label p-0"><span class="label-text font-bold text-xs uppercase tracking-wider text-base-content/70">Unidades ULO</span></label>
+                                <button type="button" id="toggle-all-ulos" class="text-[11px] text-primary font-semibold hover:underline">Selecionar Todos</button>
                             </div>
+                            <div class="flex flex-col gap-1.5 p-2 bg-base-200/60 rounded-xl border border-base-300">
+                                @foreach($availableUlos as $ulo)
+                                    <label class="label cursor-pointer justify-start gap-2.5 hover:bg-base-100 p-1.5 rounded-lg transition-colors">
+                                        <input type="checkbox" name="ulos[]" value="{{ $ulo }}" 
+                                            class="checkbox checkbox-primary checkbox-xs filter-ulo-checkbox" 
+                                            {{ in_array($ulo, $selectedUlos) ? 'checked' : '' }} />
+                                        <span class="label-text font-medium text-xs">{{ $ulo }}</span>
+                                    </label>
+                                @endforeach
+                            </div>
+                        </div>
 
-                            <!-- ULO Multi-select -->
-                            <div class="form-control">
-                                <div class="flex justify-between items-center mb-1">
-                                    <label class="label p-0"><span class="label-text font-bold">Filtrar por ULOs</span></label>
-                                    <button type="button" id="toggle-all-ulos" class="text-xs text-primary font-semibold hover:underline">Marcar / Desmarcar Todos</button>
-                                </div>
-                                <div class="flex flex-col gap-2 p-3 bg-base-200 rounded-lg border border-base-300 max-h-44 overflow-y-auto">
-                                    @foreach($availableUlos as $ulo)
-                                        <label class="label cursor-pointer justify-start gap-3 hover:bg-base-300/50 p-1.5 rounded">
-                                            <input type="checkbox" name="ulos[]" value="{{ $ulo }}" 
-                                                class="checkbox checkbox-primary checkbox-sm filter-ulo-checkbox" 
-                                                {{ in_array($ulo, $selectedUlos) ? 'checked' : '' }} />
-                                            <span class="label-text font-medium">{{ $ulo }}</span>
-                                        </label>
-                                    @endforeach
-                                </div>
-                            </div>
-
-                            <!-- Faixa de Atraso -->
-                            <div class="form-control">
-                                <label class="label"><span class="label-text font-bold">Faixa de Atraso</span></label>
-                                <select name="faixa" id="filter-faixa-select" class="select select-bordered w-full" {{ $tab === 'adimplentes' ? 'disabled' : '' }}>
-                                    <option value="all" {{ $faixa === 'all' ? 'selected' : '' }}>Todas as faixas</option>
-                                    <option value="30" {{ $faixa === '30' ? 'selected' : '' }}>Faixa 30 (Até 30 dias)</option>
-                                    <option value="90" {{ $faixa === '90' ? 'selected' : '' }}>Faixa 90 (31 a 90 dias)</option>
-                                    <option value="120" {{ $faixa === '120' ? 'selected' : '' }}>Faixa 120 (91+ dias)</option>
-                                </select>
-                            </div>
+                        <!-- Faixa de Atraso -->
+                        <div class="form-control">
+                            <label class="label py-1"><span class="label-text font-bold text-xs uppercase tracking-wider text-base-content/70">Faixa de Atraso</span></label>
+                            <select name="faixa" id="filter-faixa-select" class="select select-sm select-bordered w-full text-xs font-semibold" {{ $tab === 'adimplentes' ? 'disabled' : '' }}>
+                                <option value="all" {{ $faixa === 'all' ? 'selected' : '' }}>Todas as faixas</option>
+                                <option value="30" {{ $faixa === '30' ? 'selected' : '' }}>Faixa 30 (Até 30 dias)</option>
+                                <option value="90" {{ $faixa === '90' ? 'selected' : '' }}>Faixa 90 (31 a 90 dias)</option>
+                                <option value="120" {{ $faixa === '120' ? 'selected' : '' }}>Faixa 120 (91+ dias)</option>
+                            </select>
                         </div>
                     </div>
 
-                    <!-- Footer Buttons -->
-                    <div class="pt-6 border-t border-base-200 mt-6 flex flex-col gap-2">
-                        <button type="submit" class="btn btn-primary w-full gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <!-- Sticky Footer Buttons (Fixed at bottom) -->
+                    <div class="pt-3 border-t border-base-200 mt-3 flex flex-col gap-2 shrink-0 bg-base-100">
+                        <button type="submit" class="btn btn-primary btn-sm w-full gap-2 font-bold shadow-xs">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                             </svg>
                             Aplicar Filtros
                         </button>
-                        <button type="button" id="drawer-clear-btn" class="btn btn-outline btn-ghost w-full">
+                        <button type="button" id="drawer-clear-btn" class="btn btn-ghost btn-xs w-full text-base-content/60 hover:text-error">
                             Limpar Filtros
                         </button>
                     </div>
@@ -685,4 +694,25 @@
             restoreCollapsedColumns();
         });
     </script>
+
+    <style>
+        .custom-scrollbar {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(156, 163, 175, 0.4) transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(156, 163, 175, 0.4);
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(156, 163, 175, 0.7);
+        }
+    </style>
 </x-app-layout>

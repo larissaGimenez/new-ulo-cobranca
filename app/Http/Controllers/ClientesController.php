@@ -211,7 +211,9 @@ class ClientesController extends Controller
             'email' => 'email',
             'stage' => 'stage',
             'divida' => ($tab === 'inadimplentes_redecard' ? 'divida_redecard' : 'divida_comum'),
-            'atraso' => 'dias_atraso'
+            'atraso' => 'dias_atraso',
+            'faixa' => 'dias_atraso',
+            'phone' => 'phone'
         ];
         $sortColumn = $allowedSorts[$sortBy] ?? 'name';
         $queryStr .= " ORDER BY {$sortColumn} " . (strtolower($sortDir) === 'desc' ? 'DESC' : 'ASC');

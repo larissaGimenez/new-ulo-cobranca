@@ -45,9 +45,23 @@
                             @endif
                         </button>
                     </th>
-                    <th class="text-center font-bold">Faixa</th>
+                    <th class="text-center">
+                        <button type="button" data-action="sort" data-sort-by="faixa" data-sort-dir="{{ $sortBy === 'faixa' && $sortDir === 'asc' ? 'desc' : 'asc' }}" class="flex items-center justify-center gap-1 group font-bold w-full hover:text-primary">
+                            Faixa
+                            @if($sortBy === 'faixa')
+                                <span>{{ $sortDir === 'asc' ? '▲' : '▼' }}</span>
+                            @endif
+                        </button>
+                    </th>
                 @endif
-                <th class="font-bold">Telefone</th>
+                <th>
+                    <button type="button" data-action="sort" data-sort-by="phone" data-sort-dir="{{ $sortBy === 'phone' && $sortDir === 'asc' ? 'desc' : 'asc' }}" class="flex items-center gap-1 group font-bold hover:text-primary">
+                        Telefone
+                        @if($sortBy === 'phone')
+                            <span>{{ $sortDir === 'asc' ? '▲' : '▼' }}</span>
+                        @endif
+                    </button>
+                </th>
             </tr>
         </thead>
         <tbody>
