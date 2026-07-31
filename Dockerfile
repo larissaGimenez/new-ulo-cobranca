@@ -11,18 +11,22 @@ RUN npm run build
 # Stage 2: PHP + Nginx Environment
 FROM php:8.3-fpm-alpine
 
-# Instalar dependências de sistema e extensões do PHP (PostgreSQL, zip, pdo, etc)
+# Instalar dependências de sistema e bibliotecas para extensões do PHP
 RUN apk add --no-cache \
     nginx \
     postgresql-dev \
     libpng-dev \
+    libjpeg-turbo-dev \
+    freetype-dev \
     libzip-dev \
     zip \
     unzip \
     curl \
     oniguruma-dev
 
-RUN docker-php-ext-install pdo pdo_pgsql pgsql mbstring zip exif pcntl bcmath gd
+# Configurar e instalar extensões do PHP
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install pdo pdo_pgsql pgsql mbstring zip exif pcntl bcmath gd
 
 # Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
